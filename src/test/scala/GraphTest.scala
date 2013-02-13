@@ -10,11 +10,18 @@ class GraphTest {
 		2 -> Seq(1,3),
 		3 -> Seq(0,1,2)
 	)
+
+	val graph2 = Graph[Int](
+		0 -> Seq(1,2,3),
+		1 -> Seq(0,2,3),
+		2 -> Seq(0,1,3),
+		3 -> Seq(0,1,2)
+	)
 	
-	val graph2 = Graph.readFromFile(Path.fromString("src/main/resources/graph1.txt"))
+	val graph = Graph.readFromFile(Path.fromString("src/main/resources/graph1.txt"))
 
 	@Test def testReader = {
-		assertEquals(200,graph2.nodesCount)
+		assertEquals(200,graph.nodesCount)
 	}
 
 	@Test def testMergeNodes = {
@@ -46,9 +53,11 @@ class GraphTest {
 	}
 
 	@Test def testRandomCutCount2 = {
-		for(i <- 1 to 100){
-			Console.println(graph2.randomCutCount)
+		var count = Integer.MAX_VALUE
+		for(i <- 1 to 1000){
+			count = Math.min(graph.randomCutCount,count)
 		}
+		Console.println(count)
 	}
 	
 }

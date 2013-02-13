@@ -51,7 +51,9 @@ case class Graph[@specialized(Int) T](private val nodeMap:Map[T,Seq[T]]){
 	def randomCutCount:Int = {
 		val nodeMapClone = nodeMap.clone()
 		while(nodeMapClone.size>2){
-			val (node1,adjacent) = nodeMapClone.head
+			val nodes = nodeMapClone.toIndexedSeq
+			val i = (Math.random()*nodes.size).asInstanceOf[Int]
+			val (node1,adjacent) = nodes(i)
 			if(adjacent.size>0){
 				val j = (Math.random()*adjacent.size).asInstanceOf[Int]
 				val node2 =  adjacent(j)
