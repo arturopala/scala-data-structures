@@ -18,7 +18,7 @@ object Graph {
 		(key,adjacent)
 	}
 
-	private def mergeNodes[T](nodeMap: Map[T, Seq[T]], mergedNode: T, removedNode: T):Map[T, Seq[T]] =  {
+	private def mergeNodes[@specialized(Int) T](nodeMap: Map[T, Seq[T]], mergedNode: T, removedNode: T):Map[T, Seq[T]] =  {
 		//merge two adjacent lists, remove self-loops
 		val newAdjacent = (nodeMap(mergedNode) ++ nodeMap(removedNode)) filter (node => node != mergedNode && node != removedNode)
 		nodeMap -= removedNode //remove merged node

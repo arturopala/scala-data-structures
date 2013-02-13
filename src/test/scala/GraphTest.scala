@@ -52,9 +52,9 @@ class GraphTest {
 		}
 	}
 
-	@Test def testRandomCutCount2 = {
+	@Test def findMinCutCount = {
 		var count = Integer.MAX_VALUE
-		for(i <- 1 to 1000){
+		for(i <- 1 to graph.nodesCount){
 			count = Math.min(graph.randomCutCount,count)
 		}
 		Console.println(count)
