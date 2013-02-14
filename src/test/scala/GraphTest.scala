@@ -1,6 +1,7 @@
 import org.junit.Assert._
 import org.junit.Test
 import scalax.file.Path
+import collection.mutable.{Map, Seq}
 
 class GraphTest {
 
@@ -54,7 +55,7 @@ class GraphTest {
 
 	@Test def findMinCutCount = {
 		var count = Integer.MAX_VALUE
-		for(i <- 1 to graph.nodesCount){
+		for(i <- 1 to 20){
 			count = Math.min(graph.randomCutCount,count)
 		}
 		Console.println(count)
