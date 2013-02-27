@@ -49,16 +49,23 @@ class GraphTest {
 
 	@Test def testRandomCutCount = {
 		for(i <- 1 to 10){
-			Console.println(graph1.randomCutCount)
+			Console.println(Graph.randomCutCount(graph1))
 		}
 	}
 
 	@Test def findMinCutCount = {
 		var count = Integer.MAX_VALUE
 		for(i <- 1 to 20){
-			count = Math.min(graph.randomCutCount,count)
+			count = Math.min(Graph.randomCutCount(graph),count)
 		}
 		Console.println(count)
 	}
+
+  @Test def readSCCGraph = {
+    val graph = Graph.readFromEdgeFile(Path.fromString("src/main/resources/SCC.txt"))
+    assert(graph!=null)
+    Console.println(graph.nodesCount)
+    Console.println(graph.edgesCount)
+  }
 	
 }

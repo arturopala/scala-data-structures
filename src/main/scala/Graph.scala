@@ -1,20 +1,47 @@
 import scalax.file.Path
 import collection.mutable.{ArrayBuffer, Map, Queue}
 
+class Graph[@specialized(Int) N](private val nodeMap:Map[N,Seq[N]] ){
+
+  def adjacentOf(node:N):Seq[N] = nodeMap(node)
+  def adjacentOrUpdate(node:N,up: => Seq[N]):Seq[N] = nodeMap.getOrElseUpdate(node,up)
+
+  def update(node:N,adjacent:Seq[N]) = nodeMap.put(node,adjacent)
+
+  def has(node:N):Boolean =  nodeMap.contains(node)
+  def nodes:Iterable[N] = nodeMap.keys
+
+  def nodesCount:Int = nodeMap.size
+  def edgesCount:Long = nodeMap.valuesIterator.foldLeft(0L){case (sum,adjacent) => sum + adjacent.size}
+
+  def mergeNodes(mergedNode:N, removedNode:N):Graph[N] = {
+    assert(has(mergedNode))
+    assert(has(removedNode))
+    new Graph(Graph.mergeNodes(nodeMap.clone(), mergedNode, removedNode))
+  }
+}
+
 object Graph {
 
 	def apply[@specialized(Int) N](nodes:(N,Seq[N])*):Graph[N] = new Graph(Map(nodes:_*))
 	
 	def readFromAdjacentListFile(path:Path):Graph[Int] = {
-		val nodes:Seq[(Int,Seq[Int])] = Seq((for (line <-path.lines().toSeq if !line.trim.isEmpty) yield readNodeAdjacentList(line)):_*).filter(_!=null)
-		Graph(Map(nodes:_*))
+    val graph = Graph[Int]()
+    for (line <-path.lines() if !line.trim.isEmpty) {
+      val (node, adjacent) = readNodeAdjacentList(line)
+      if(adjacent!=null) graph(node) = adjacent
+    }
+    graph
 	}
 
 	def readFromEdgeFile(path:Path):Graph[Int] = {
 		val graph = Graph[Int]()
-		for (line <-path.lines().toSeq if !line.trim.isEmpty) {
-			val edge = line.split(' ') map (_.toInt)
-			graph.adjacentOf(edge(0))
+		for (line <-path.lines() if !line.trim.isEmpty) {
+      val i = line.indexOf(' ')
+			val tail = line.substring(0,i).toInt
+      val head = line.substring(i+1).trim.toInt
+			val adjacent = graph.adjacentOrUpdate(tail,{new ArrayBuffer[Int]()}).asInstanceOf[ArrayBuffer[Int]] //safe
+      adjacent += head
 		}
 		graph
 	}
@@ -27,11 +54,28 @@ object Graph {
 		(label,adjacent)
 	}
 
+  def randomCutCount[@specialized(Int) N](graph:Graph[N]):Int = {
+    val nodeMapClone = graph.nodeMap.clone()
+    val nodesQueue = Queue[N](randomize(Seq[N](nodeMapClone.keySet.toSeq:_*)):_*)
+    while(nodeMapClone.size>2){
+      val node1 = nodesQueue.dequeue
+      val adjacent = nodeMapClone(node1)
+      if(adjacent.size>0){
+        val j = (Math.random()*adjacent.size).asInstanceOf[Int]
+        val node2 =  adjacent(j)
+        mergeNodes(nodeMapClone,node2,node1)
+      }
+    }
+    val (_, adjacent) = nodeMapClone.head
+    adjacent.size
+  }
+
 	private def mergeNodes[@specialized(Int) N](nodeMap: Map[N, Seq[N]], mergedNode: N, removedNode: N):Map[N, Seq[N]] =  {
 		//merge two adjacent lists, remove self-loops
 		val removedAdjacent = nodeMap(removedNode)
-		val newAdjacent = ArrayBuffer[N]()
-		for(node <- nodeMap(mergedNode)) {
+    val mergedAdjacent = nodeMap(mergedNode)
+		val newAdjacent = new ArrayBuffer[N](removedAdjacent.size+mergedAdjacent.size)
+		for(node <- mergedAdjacent) {
 			if(node != removedNode) newAdjacent += node
 		}
 		for(node <- removedAdjacent) {
@@ -61,34 +105,4 @@ object Graph {
 			.map{case (_,item) => item}
 	}
 
-}
-
-case class Graph[@specialized(Int) N]( val nodeMap:Map[N,Seq[N]] ){
-	
-	def adjacentOf(node:N):Seq[N] = nodeMap(node)
-	def has(node:N):Boolean =  nodeMap.contains(node)
-	def nodes:Iterable[N] = nodeMap.keys
-	def nodesCount:Int = nodeMap.size
-
-	def mergeNodes(mergedNode:N, removedNode:N):Graph[N] = {
-		assert(has(mergedNode))
-		assert(has(removedNode))
-		Graph(Graph.mergeNodes(nodeMap.clone(), mergedNode, removedNode))
-	}
-	
-	def randomCutCount:Int = {
-		val nodeMapClone = nodeMap.clone()
-		val nodesQueue = Queue[N](Graph.randomize(Seq[N](nodeMapClone.keySet.toSeq:_*)):_*)
-		while(nodeMapClone.size>2){
-			val node1 = nodesQueue.dequeue
-			val adjacent = nodeMapClone(node1)
-			if(adjacent.size>0){
-				val j = (Math.random()*adjacent.size).asInstanceOf[Int]
-				val node2 =  adjacent(j)
-				Graph.mergeNodes(nodeMapClone,node2,node1)
-			}
-		}
-		val (_, adjacent) = nodeMapClone.head
-		adjacent.size
-	}
 }
