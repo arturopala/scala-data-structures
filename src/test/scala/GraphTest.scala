@@ -19,7 +19,7 @@ class GraphTest {
 		3 -> Seq(0,1,2)
 	)
 	
-	val graph = Graph.readFromFile(Path.fromString("src/main/resources/graph1.txt"))
+	val graph = Graph.readFromAdjacentListFile(Path.fromString("src/main/resources/graph1.txt"))
 
 	@Test def testReader = {
 		assertEquals(200,graph.nodesCount)
