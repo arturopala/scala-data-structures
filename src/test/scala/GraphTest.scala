@@ -1,4 +1,6 @@
 import org.scalatest.FunSpec
+import scala.Predef._
+import scalax.file.Path
 
 class GraphTest extends FunSpec {
 
@@ -27,6 +29,12 @@ class GraphTest extends FunSpec {
             assert(radjacentOf1.isEmpty)
             assert(radjacentOf4 == Seq(3))
         }
+	    it("should read SSC graph") {
+		    val graph = Graph.readFromEdgeListFile(Path.fromString("src/main/resources/SCC.txt"))
+		    assert(graph!=null)
+		    Console.println(graph.nodesCount)
+		    Console.println(graph.edgesCount)
+	    }
     }
 
 }

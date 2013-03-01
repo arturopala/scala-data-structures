@@ -1,7 +1,7 @@
 import scalax.file.Path
 import collection.mutable.{ArrayBuffer, Map, Queue}
 
-class MapGraph[@specialized(Int) N](private val nodeMap:Map[N,Seq[N]] ){
+class MapGraph[@specialized(Int) N](private val nodeMap:Map[N,Seq[N]]){
 
   def adjacentOf(node:N):Seq[N] = nodeMap(node)
   def adjacentOrUpdate(node:N,up: => Seq[N]):Seq[N] = nodeMap.getOrElseUpdate(node,up)
@@ -34,7 +34,7 @@ object MapGraph {
     graph
 	}
 
-	def readFromEdgeFile(path:Path):MapGraph[Int] = {
+	def readFromEdgeListFile(path:Path):MapGraph[Int] = {
 		val graph = MapGraph[Int]()
 		for (line <-path.lines() if !line.trim.isEmpty) {
       val i = line.indexOf(' ')

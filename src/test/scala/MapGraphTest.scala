@@ -62,7 +62,7 @@ class MapGraphTest {
 	}
 
   @Test def readSCCGraph = {
-    val graph = MapGraph.readFromEdgeFile(Path.fromString("src/main/resources/SCC.txt"))
+    val graph = MapGraph.readFromEdgeListFile(Path.fromString("src/main/resources/SCC.txt"))
     assert(graph!=null)
     Console.println(graph.nodesCount)
     Console.println(graph.edgesCount)
