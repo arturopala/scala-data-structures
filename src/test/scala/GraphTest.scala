@@ -1,3 +1,4 @@
+import org.junit.Assert._
 import org.scalatest.FunSpec
 import scala.Predef._
 import scalax.file.Path
@@ -61,14 +62,25 @@ class GraphTest extends FunSpec {
             for((n,col) <- result.take(100)) Console.println(col.size+":"+col)
             assert(result.size==3)
         }
-        it("should read SSC graph") {
+        /*it("should read SSC graph") {
             val graph = Graph.readFromEdgeListFile(Path.fromString("src/main/resources/SCC.txt"))
             assert(graph!=null)
             Console.println(graph.nodesCount)
             Console.println(graph.edgesCount)
             val result = Graph.scc(graph)
             for((n,col) <- result.take(100)) Console.println(col.size)
-        }
+        }*/
+	    it("should read adjacent list graph from file") {
+		    val graph = Graph.readFromAdjacentListFile(Path.fromString("src/main/resources/graph1.txt"))
+		    assert(graph.nodesCount==200)
+		    assert(graph.adjacent(82).size==27)
+	    }
+	    it("should read adjacent-weight list graph from file") {
+		    val graph = Graph.readFromAdjacentWeightListFile(Path.fromString("src/main/resources/dijkstraData.txt"))
+		    assert(graph.nodesCount==200)
+		    assert(graph.weight(200,108)==9976)
+		    assert(graph.adjacent(31).size==21)
+	    }
     }
 
 }

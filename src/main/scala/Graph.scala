@@ -13,7 +13,7 @@ trait Graph[@specialized(Int) N] extends Traversable[(N,N)] {
 	def edgesCount:Long
 }
 
-trait Weighted[@specialized(Int) N, @specialized(Double) V] {
+trait Weighted[@specialized(Int) N, @specialized(Int,Double) V] {
     def weight: (N,N) => V
 }
 
@@ -47,7 +47,11 @@ class MutableMapGraph[@specialized(Int) N] extends GenericGraph[N] {
     protected val map = scala.collection.mutable.Map[N,ArrayBuffer[N]]()
     override def nodes:Iterable[N] =  map.keys
     override val adjacent: N => ArrayBuffer[N] = map.withDefaultValue(ArrayBuffer.empty[N])
+	override lazy val reverse = Graph.reverse[N](this)
 
+	def add(node:N, adjacent:ArrayBuffer[N]):MutableMapGraph[N] = {
+		map.update(node,adjacent); this
+	} 
     def add(edge: (N,N)):MutableMapGraph[N] = {
         map.getOrElseUpdate(edge._1,{ArrayBuffer[N]()}) += (edge._2); this
     }
@@ -63,13 +67,15 @@ class MutableMapGraph[@specialized(Int) N] extends GenericGraph[N] {
 }
 
 object Graph {
+	
+	class GenericGraphImpl[@specialized(Int) N](val nodes:Iterable[N], val adjacent: N => Traversable[N]) extends GenericGraph[N]
+	class WeightedGraphImpl[@specialized(Int) N, @specialized(Double,Int) V](val nodes:Iterable[N], val adjacent: N => Traversable[N], val weight: (N,N) => V) extends GenericGraph[N] with Weighted[N,V]
 
-    def apply[@specialized(Int) N](mappings:(N,Iterable[N])*): Graph[N] = new GenericGraph[N] {
-        private val map = mappings.toMap
-        val nodes: Iterable[N] = map.keys
-        val adjacent: N => Traversable[N] = map.withDefaultValue(Traversable.empty[N])
+    def apply[@specialized(Int) N](mappings:(N,Iterable[N])*): Graph[N] = {
+	    val nodeMap = mappings.toMap
+	    new GenericGraphImpl[N](nodeMap.keys,nodeMap.withDefaultValue(Traversable.empty[N]))
     }
-
+	def apply[@specialized(Int) N](nodes:Iterable[N], adjacent: N => Traversable[N]): Graph[N] = new GenericGraphImpl[N](nodes,adjacent)
     def apply[@specialized(Int) N](edges:Traversable[(N,N)]): Graph[N] = new MutableMapGraph[N]().add(edges)
 
 	def readFromEdgeListFile(path:Path, reversed:Boolean = false):Graph[Int] = {
@@ -80,6 +86,41 @@ object Graph {
             if (reversed) (head,tail) else (tail,head)
         })
         Graph(edges)
+	}
+
+	def readFromAdjacentListFile(path:Path): Graph[Int] = {
+		def parseNodeAdjacentList(line:String):(Int,Seq[Int]) = {
+			val tokens = line.split('\t')
+			if(tokens.length==0) return null
+			val label:Int = Integer.parseInt(tokens(0))
+			val adjacent:Seq[Int] = tokens.drop(1) map (_.toInt)
+			(label,adjacent)
+		}
+		val nodeMap = scala.collection.mutable.Map[Int,Traversable[Int]]()
+		for (line <-path.lines() if !line.trim.isEmpty) {
+			val (node, adjacent) = parseNodeAdjacentList(line)
+			nodeMap(node) = adjacent
+		}
+		new GenericGraphImpl[Int](nodeMap.keys, nodeMap.withDefaultValue(Traversable.empty[Int]))
+	}
+
+	def readFromAdjacentWeightListFile(path:Path): Graph[Int] with Weighted[Int,Int] = {
+		def parseNodeWeightAdjacentList(line:String):(Int,Map[Int,Int]) = {
+			val tokens = line.split('\t')
+			if(tokens.length==0) return null
+			val label:Int = Integer.parseInt(tokens(0))
+			val adjacent:Map[Int,Int] = (tokens.drop(1) map parseNodeWeight _).toMap
+			(label,adjacent)
+		}
+		def parseNodeWeight(token:String): (Int,Int) = {
+			val nw = token.split(',') map (_.toInt); (nw(0),nw(1))
+		}
+		val nodeWeightMap = scala.collection.mutable.Map[Int,Map[Int,Int]]()
+		for (line <-path.lines() if !line.trim.isEmpty) {
+			val (node, list) = parseNodeWeightAdjacentList(line)
+			nodeWeightMap(node) = list
+		}
+		new WeightedGraphImpl[Int,Int](nodeWeightMap.keys, nodeWeightMap.mapValues{case m => m.keys}, (t:Int,h:Int) => nodeWeightMap(t)(h))
 	}
 
     def reverse[N](graph:Graph[N]):Graph[N] =  new MutableMapGraph[N](){
@@ -99,7 +140,7 @@ object Graph {
 
     def scc[@specialized(Int) N](graph:Graph[N]): Seq[(N,Iterable[N])] = {
         //first pass
-        val reversed: Graph[N] = Graph.reverse(graph)
+        val reversed: Graph[N] = graph.reverse
         val attributes = mutable.Map[N,SccNodeInfo[N]]()
         def attrOf(node:N):SccNodeInfo[N] = attributes.getOrElseUpdate(node,{new SccNodeInfo[N]})
         var t:Int = 0
