@@ -49,7 +49,7 @@ class GraphTest extends FunSpec {
         it("should search graph with dfs") {
             val graph = graph2
             var counter = 0
-            Graph.dfs(graph,new Graph.DfsLoopObserver[Int] {
+            Graph.dfs(graph,new Graph.Observer[Int] {
                 override def before(node:Int) {
                     counter = counter + 1
                 }
@@ -59,7 +59,6 @@ class GraphTest extends FunSpec {
         it("should search graph with scc") {
             val graph = graph2
             val result = Graph.scc(graph)
-            for((n,col) <- result.take(100)) Console.println(col.size+":"+col)
             assert(result.size==3)
         }
         /*it("should read SSC graph") {
@@ -80,6 +79,13 @@ class GraphTest extends FunSpec {
 		    assert(graph.nodesCount==200)
 		    assert(graph.weight(200,108)==9976)
 		    assert(graph.adjacent(31).size==21)
+	    }
+	    it("should compute shortest path") {
+		    val graph = Graph.readFromAdjacentWeightListFile(Path.fromString("src/main/resources/dijkstraData.txt"))
+		    assert(graph.nodesCount==200)
+		    assert(graph.weight(200,108)==9976)
+		    assert(graph.adjacent(31).size==21)
+		    val path = Graph.shortestPath(graph,1,197)
 	    }
     }
 
