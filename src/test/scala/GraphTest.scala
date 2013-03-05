@@ -50,7 +50,7 @@ class GraphTest extends FunSpec {
             val graph = graph2
             var counter = 0
             Graph.dfs(graph,new Graph.DfsLoopObserver[Int] {
-                override def beforeInner(node:Int) {
+                override def before(node:Int) {
                     counter = counter + 1
                 }
             })(graph.nodes)

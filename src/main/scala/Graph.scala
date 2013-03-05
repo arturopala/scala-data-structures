@@ -128,9 +128,9 @@ object Graph {
     }.addReverse(graph)
 
     trait DfsLoopObserver[N] {
-        def beforeOuter(node:N) {}
-        def beforeInner(node:N) {}
-        def afterInner(node:N) {}
+        def start(node:N) {}
+        def before(node:N) {}
+        def after(node:N) {}
     }
 
     class SccNodeInfo[N] {
@@ -138,6 +138,7 @@ object Graph {
         var time:Int = 0
     }
 
+    /** Finds strongly connected components */
     def scc[@specialized(Int) N](graph:Graph[N]): Seq[(N,Iterable[N])] = {
         //first pass
         val reversed: Graph[N] = graph.reverse
@@ -146,7 +147,7 @@ object Graph {
         var t:Int = 0
         var s: Option[N] = None
         val observer1 = new DfsLoopObserver[N] {
-            override def afterInner(node:N) {
+            override def after(node:N) {
                 t = t + 1
                 attrOf(node).time = t
             }
@@ -155,10 +156,10 @@ object Graph {
         // second pass
         val ordered = (attributes map {case (node,attr) => (node,attr.time)}).toSeq sortBy {case (_,time) => -time} map {case (node,_) => node}
         val observer2 = new DfsLoopObserver[N] {
-            override def beforeOuter(node:N) {
+            override def start(node:N) {
                 s = Some(node)
             }
-            override def beforeInner(node:N) {
+            override def before(node:N) {
                 attrOf(node).leader = s
             }
         }
@@ -172,21 +173,21 @@ object Graph {
         val explored = mutable.HashSet[N]()
         for (node <- nodes){
             if (!(explored contains node)){
-                observer beforeOuter (node)
+                observer start (node)
                 dfs(graph,node,observer,explored)
             }
         }
     }
 
-    def dfs[@specialized(Int) N](graph:Graph[N],node:N, observer: DfsLoopObserver[N], explored:mutable.HashSet[N]):Unit = {
+    def dfs[@specialized(Int) N](graph:Graph[N],node:N, observer: DfsLoopObserver[N], explored:mutable.HashSet[N] = mutable.HashSet[N]()):Unit = {
         if (!(explored contains node)){
             explored add node
-            observer beforeInner node
+            observer before node
             val next = graph.adjacent(node) filterNot explored
             if (!next.isEmpty) next foreach {n =>
                 dfs(graph,n,observer,explored)
             }
-            observer afterInner node
+            observer after node
         }
     }
 }
