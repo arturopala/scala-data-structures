@@ -86,6 +86,10 @@ object Graph {
     }
 	def apply[@specialized(Int) N](nodes:Iterable[N], adjacent: N => Traversable[N]): Graph[N] = new GenericGraphImpl[N](nodes,adjacent)
     def apply[@specialized(Int) N](edges:Traversable[(N,N)]): Graph[N] = new MutableMapGraph[N]().add(edges)
+	def apply[@specialized(Int) N, @specialized(Double,Int) V:Numeric](mappings:(N,Iterable[(N,V)])*): Graph[N] with Weighted[N,V] = {
+		val nodeWeightMap = mappings.toMap map {case (k,v) => (k,v.toMap)}
+		new WeightedGraphImpl[N,V](nodeWeightMap.keys, nodeWeightMap.mapValues{case m => m.keys}.withDefaultValue(Traversable.empty[N]), (t:N,h:N) => nodeWeightMap(t)(h))
+	}
 
 	def readFromEdgeListFile(path:Path, reversed:Boolean = false):Graph[Int] = {
         val edges = path.lines().view map (line => {
@@ -149,7 +153,7 @@ object Graph {
 
     /** Kosaraju's two dfs pass algorithm finds strongly connected components */
     def scc[@specialized(Int) N](graph:Graph[N]): Iterable[Iterable[N]] = {
-        //first pass
+        // first pass
         val reversed: Graph[N] = graph.reverse
         val attributes = mutable.Map[N,SccNodeInfo[N]]()
         def attrOf(node:N):SccNodeInfo[N] = attributes.getOrElseUpdate(node,{new SccNodeInfo[N]})
@@ -173,7 +177,7 @@ object Graph {
             }
         }
         dfs(graph,observer2)(ordered)
-        //result
+        // compute result
         val result = (attributes groupBy {case (_,attr) => attr.leader.get}).toSeq sortBy {case (_,map) => -map.size} map {case (n,map) => map.keys}
         result
     }
@@ -200,37 +204,68 @@ object Graph {
         }
     }
 	
-	/** Dijkstra algorithm finds shortest path */ 
-	def shortestPath[@specialized(Int) N, @specialized(Double,Int) V:Numeric](graph: Graph[N] with Weighted[N,V],from: N, to: N): Iterable[((N,N),V)] = {
-		if(from==to || graph.adjacent(from).isEmpty) return Seq.empty[((N,N),V)]
+	/** Dijkstra algorithm finds shortest path in acyclic directed graph */ 
+	def shortestPath[@specialized(Int) N, @specialized(Double,Int) V:Numeric](graph: Graph[N] with Weighted[N,V],from: N, to: N): (V,Iterable[(N,N)]) = {
 		val num: Numeric[V] = implicitly[Numeric[V]]
+		if(from==to || graph.adjacent(from).isEmpty) return (num.zero,Nil)
+		val nodesCount = graph.nodesCount
+		val explored = mutable.HashSet[N]()
+		val distance = mutable.Map[N,V]()
+		val breadcrumbs = ArrayBuffer[(N,N)]()
+		val outgoingEdges = mutable.HashSet[(N,N)]()
+		var head = from
+		explored add from
+		distance(from) = num.zero
+		var nextEdges = graph.adjacent(from) filterNot explored map (node => (from,node))
+		outgoingEdges ++= nextEdges
+		do {
+			val (t,h) = outgoingEdges minBy {case (t,h) => num.plus(distance(t),graph.weight(t,h))}
+			explored add h
+			distance(h) = num.plus(distance(t),graph.weight(t,h))
+			breadcrumbs += ((t,h))
+			outgoingEdges remove (t,h)
+			outgoingEdges --= (outgoingEdges filter {case (_,node) => node == h})
+			nextEdges = graph.adjacent(h) filterNot explored map (node => (h,node))
+			outgoingEdges ++= nextEdges
+			head = h
+		} while (head!=to && !outgoingEdges.isEmpty && explored.size != nodesCount)
+		// compute resulting path
+		var path: List[(N,N)] = Nil
+		if(head==to){
+			val backgraph = Graph(breadcrumbs map {case (t,h) => (h,t)})
+			var next = to
+			do {
+				val node = next
+				next = backgraph.adjacent(node).minBy(n => distance(n))
+				val segment = (next,node)
+				path = segment :: path
+			} while(next!=from)
+		}
+		(distance(to), path)
+	}
+
+	/** Dijkstra algorithm finds all shortest paths starting at given node in acyclic directed graph */
+	def shortestPaths[@specialized(Int) N, @specialized(Double,Int) V:Numeric](graph: Graph[N] with Weighted[N,V],from: N): scala.collection.Map[N,V] = {
+		val num: Numeric[V] = implicitly[Numeric[V]]
+		if(graph.adjacent(from).isEmpty) return Map.empty
+		val nodesCount = graph.nodesCount
 		val explored = mutable.HashSet[N]()
 		val distance = mutable.Map[N,V]()
 		val outgoingEdges = mutable.HashSet[(N,N)]()
 		explored add from
 		distance(from) = num.zero
-		outgoingEdges ++= (graph.adjacent(from) map (h => (from,h)))
-		var counter = 2
-		Console.println("nodes: "+graph.nodesCount+" edges: "+graph.edgesCount)
-		var head = from
-		while(head!=to && !outgoingEdges.isEmpty && explored.size != graph.nodesCount){
-			for((t,h) <- outgoingEdges){
-				distance(h) = distance.get(h) match {
-					case None => num.plus(distance(t),graph.weight(t,h))
-					case Some(v) => num.min(v,num.plus(distance(t),graph.weight(t,h)))
-				}
-			}
-			val (t,h) = outgoingEdges minBy {case (_,h) => distance(h)}
-			Console.println(counter+". "+t+" -> "+h+" : "+distance(h)+" ("+outgoingEdges.size+")")
+		var nextEdges = graph.adjacent(from) filterNot explored map (node => (from,node))
+		outgoingEdges ++= nextEdges
+		do {
+			val (t,h) = outgoingEdges minBy {case (t,h) => num.plus(distance(t),graph.weight(t,h))}
 			explored add h
+			distance(h) = num.plus(distance(t),graph.weight(t,h))
 			outgoingEdges remove (t,h)
-			outgoingEdges --= (outgoingEdges filter {case (_,n) => n == h})
-			outgoingEdges ++= (graph.adjacent(h) filterNot explored map (n => (h,n)))
-			head = h
-			counter = counter + 1
-		}
-		Console.println(distance(to))
-		Nil
+			outgoingEdges --= (outgoingEdges filter {case (_,node) => node == h})
+			nextEdges = graph.adjacent(h) filterNot explored map (node => (h,node))
+			outgoingEdges ++= nextEdges
+		} while (!outgoingEdges.isEmpty && explored.size != nodesCount)
+		distance
 	}
 }
 

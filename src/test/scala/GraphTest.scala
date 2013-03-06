@@ -1,4 +1,3 @@
-import org.junit.Assert._
 import org.scalatest.FunSpec
 import scala.Predef._
 import scalax.file.Path
@@ -7,14 +6,14 @@ class GraphTest extends FunSpec {
 
     describe("Graph"){
 
-        val graph1 = Graph(
+        val graph1 = Graph[Int](
             1 -> Seq(2,3),
             2 -> Seq(3),
             3 -> Seq(4),
             4 -> Seq()
         )
 
-        val graph2 = Graph(
+        val graph2 = Graph[Int](
             1 -> Seq(2,3,6),
             2 -> Seq(3),
             3 -> Seq(4),
@@ -29,6 +28,14 @@ class GraphTest extends FunSpec {
             12 -> Seq(13),
             13 -> Seq(11)
         )
+
+	    val graph3 = Graph[Int,Int](
+		    1 -> Seq((2,1),(3,2),(4,3)),
+		    2 -> Seq((3,3),(5,4)),
+		    3 -> Seq((4,2),(5,2)),
+		    4 -> Seq((5,3)),
+		    5 -> Seq()
+	    )
 
         it("should have nodes and edges") {
             assert(graph1.nodes.size==4, "graph nodes count should be 4")
@@ -80,12 +87,35 @@ class GraphTest extends FunSpec {
 		    assert(graph.weight(200,108)==9976)
 		    assert(graph.adjacent(31).size==21)
 	    }
-	    it("should compute shortest path") {
+	    it("should compute shortest path - graph3") {
+		    val (distance,path) = Graph.shortestPath(graph3,1,5)
+		    assert(distance==4)
+		    assert(path==List((1,3), (3,5)))
+	    }
+	    it("should compute shortest path - dijkstraData") {
 		    val graph = Graph.readFromAdjacentWeightListFile(Path.fromString("src/main/resources/dijkstraData.txt"))
 		    assert(graph.nodesCount==200)
 		    assert(graph.weight(200,108)==9976)
 		    assert(graph.adjacent(31).size==21)
-		    val path = Graph.shortestPath(graph,1,197)
+		    val path1 = Graph.shortestPath(graph,1,197)
+		    assert(path1==(3068,List((1,114), (114,103), (103,110), (110,197))))
+		    val path2 = Graph.shortestPath(graph,1,115)
+		    assert(path2==(2399,List((1,80), (80,115))))
+	    }
+	    it("should compute all shortest paths - graph3") {
+		    val distance = Graph.shortestPaths(graph3,1)
+		    assert(distance.size==5)
+		    assert(distance==Map(1 -> 0, 2 -> 1, 3 -> 2, 4 -> 3, 5 -> 4))
+	    }
+	    it("should compute all shortest paths - dijkstraData") {
+		    val graph = Graph.readFromAdjacentWeightListFile(Path.fromString("src/main/resources/dijkstraData.txt"))
+		    assert(graph.nodesCount==200)
+		    assert(graph.weight(200,108)==9976)
+		    assert(graph.adjacent(31).size==21)
+		    val distance = Graph.shortestPaths(graph,1)
+		    val nodes = Seq(7,37,59,82,99,115,133,165,188,197)
+		    val result = nodes map distance
+		    assert(result==List(2599, 2610, 2947, 2052, 2367, 2399, 2029, 2442, 2505, 3068))
 	    }
     }
 
