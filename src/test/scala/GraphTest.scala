@@ -13,6 +13,7 @@ class GraphTest extends FunSpec {
             4 -> Seq()
         )
 
+	    /* cyclic, connected components */
         val graph2 = Graph[Int](
             1 -> Seq(2,3,6),
             2 -> Seq(3),
@@ -29,6 +30,7 @@ class GraphTest extends FunSpec {
             13 -> Seq(11)
         )
 
+	    /* acyclic, weighted */
 	    val graph3 = Graph[Int,Int](
 		    1 -> Seq((2,1),(3,2),(4,3)),
 		    2 -> Seq((3,3),(5,4)),
@@ -41,7 +43,7 @@ class GraphTest extends FunSpec {
             assert(graph1.nodes.size==4, "graph nodes count should be 4")
             assert(graph1.edges.size==4, "graph edges count should be 4")
         }
-        it("should have reverse graph") {
+        it("should have copyReversed graph") {
             val reverse = graph1.reverse
             val redges = reverse.edges.toSeq
             val reversed2 = reverse.reverse
@@ -60,22 +62,14 @@ class GraphTest extends FunSpec {
                 override def before(node:Int) {
                     counter = counter + 1
                 }
-            })(graph.nodes)
+            })
             assert(counter==graph.nodesCount)
         }
-        it("should search graph with scc") {
+        it("should search graph with findStronglyConnectedComponents") {
             val graph = graph2
-            val result = Graph.scc(graph)
+            val result = Graph.findStronglyConnectedComponents(graph)
             assert(result.size==3)
         }
-        /*it("should read SSC graph") {
-            val graph = Graph.readFromEdgeListFile(Path.fromString("src/main/resources/SCC.txt"))
-            assert(graph!=null)
-            Console.println(graph.nodesCount)
-            Console.println(graph.edgesCount)
-            val result = Graph.scc(graph)
-            for((n,col) <- result.take(100)) Console.println(col.size)
-        }*/
 	    it("should read adjacent list graph from file") {
 		    val graph = Graph.readFromAdjacentListFile(Path.fromString("src/main/resources/graph1.txt"))
 		    assert(graph.nodesCount==200)
@@ -87,8 +81,20 @@ class GraphTest extends FunSpec {
 		    assert(graph.weight(200,108)==9976)
 		    assert(graph.adjacent(31).size==21)
 	    }
+	    it("should find cycles - graph2") {
+		    val cycles = Graph.findCycles(graph2)
+		    assert(cycles.size == 6)
+	    }
+	    it("should find cycles - graph3") {
+		    val cycles = Graph.findCycles(graph3)
+		    assert(cycles.isEmpty)
+	    }
+	    it("should check cycles") {
+		    assert(Graph.hasCycles(graph2))
+		    assert(!Graph.hasCycles(graph3))
+	    }
 	    it("should compute shortest path - graph3") {
-		    val (distance,path) = Graph.shortestPath(graph3,1,5)
+		    val (distance,path) = Graph.findShortestPath(graph3,1,5)
 		    assert(distance==4)
 		    assert(path==List((1,3), (3,5)))
 	    }
@@ -97,13 +103,13 @@ class GraphTest extends FunSpec {
 		    assert(graph.nodesCount==200)
 		    assert(graph.weight(200,108)==9976)
 		    assert(graph.adjacent(31).size==21)
-		    val path1 = Graph.shortestPath(graph,1,197)
+		    val path1 = Graph.findShortestPath(graph,1,197)
 		    assert(path1==(3068,List((1,114), (114,103), (103,110), (110,197))))
-		    val path2 = Graph.shortestPath(graph,1,115)
+		    val path2 = Graph.findShortestPath(graph,1,115)
 		    assert(path2==(2399,List((1,80), (80,115))))
 	    }
 	    it("should compute all shortest paths - graph3") {
-		    val distance = Graph.shortestPaths(graph3,1)
+		    val distance = Graph.findShortestPaths(graph3,1)
 		    assert(distance.size==5)
 		    assert(distance==Map(1 -> 0, 2 -> 1, 3 -> 2, 4 -> 3, 5 -> 4))
 	    }
@@ -112,11 +118,19 @@ class GraphTest extends FunSpec {
 		    assert(graph.nodesCount==200)
 		    assert(graph.weight(200,108)==9976)
 		    assert(graph.adjacent(31).size==21)
-		    val distance = Graph.shortestPaths(graph,1)
+		    val distance = Graph.findShortestPaths(graph,1)
 		    val nodes = Seq(7,37,59,82,99,115,133,165,188,197)
 		    val result = nodes map distance
 		    assert(result==List(2599, 2610, 2947, 2052, 2367, 2399, 2029, 2442, 2505, 3068))
 	    }
+	    /*it("should find strongly connected components - scc") {
+			val graph = Graph.readFromEdgeListFile(Path.fromString("src/main/resources/SCC.txt"))
+			assert(graph!=null)
+			Console.println(graph.nodesCount)
+			Console.println(graph.edgesCount)
+			val result = Graph.findStronglyConnectedComponents(graph)
+			for(scc <- result.take(100)) Console.println(scc.size)
+		}*/
     }
 
 }
