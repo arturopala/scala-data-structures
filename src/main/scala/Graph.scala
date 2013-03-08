@@ -2,7 +2,7 @@ import collection.mutable
 import com.sun.org.apache.xalan.internal.lib.NodeInfo
 import scala.specialized
 import scalax.file.Path
-import scala.collection.mutable.{Stack,ArrayBuffer}
+import collection.mutable.{ArrayBuffer, Stack}
 
 trait Graph[@specialized(Int) N] {
     def nodes: Iterable[N]
@@ -220,41 +220,23 @@ object Graph {
 			case CycleFoundException => true
 		}
 	}
-
-    /** Kosaraju's two dfs pass algorithm finds strongly connected components */
-    def findStronglyConnectedComponents[@specialized(Int) N](graph:Graph[N]): Iterable[Iterable[N]] = {
-	    class SccNodeInfo {
-		    var leader:Option[N] = None
-		    var time:Int = 0
-	    }
-	    val attributes = new mutable.HashMap[N,SccNodeInfo]()
-	    def attrOf(node:N):SccNodeInfo = attributes.getOrElseUpdate(node,{new SccNodeInfo})
-        // first pass
-        val reversed: Graph[N] = graph.reverse
-        var t:Int = 0
-        var s: Option[N] = None
-        val observer1 = new Observer[N] {
-            override def after(node:N) {
-                t = t + 1
-                attrOf(node).time = t
-            }
-        }
-        dfs(reversed,observer1,reversed.nodes)
-        // second pass
-        val ordered = (attributes map {case (node,attr) => (node,attr.time)}).toSeq sortBy {case (_,time) => -time} map {case (node,_) => node}
-        val observer2 = new Observer[N] {
-            override def start(node:N) {
-                s = Some(node)
-            }
-            override def before(node:N) {
-                attrOf(node).leader = s
-            }
-        }
-        dfs(graph,observer2,ordered)
-        // compute result
-        val result = (attributes groupBy {case (_,attr) => attr.leader.get}).toSeq sortBy {case (_,map) => -map.size} map {case (n,map) => map.keys}
-        result
-    }
+	
+	def sortTopologically[@specialized(Int) N](graph: Graph[N]): Iterable[N] = {
+		var counter = graph.nodesCount
+		var priorities = new ArrayBuffer[(N,Int)](graph.nodesCount)
+		val observer = new Observer[N] {
+			override def after(node: N) {
+				priorities += ((node,counter))
+				counter = counter - 1
+			}
+		}
+		dfs(graph,observer)
+		implicit val ordering = new Ordering[(N,Int)] {
+			def compare(x: (N, Int), y: (N, Int)): Int = x._2 - y._2
+		}
+		QuickSort.sort(priorities)
+		priorities map {case (node,_) => node}
+	}
 	
 	/** Dijkstra algorithm finds shortest path in acyclic directed graph */ 
 	def findShortestPath[@specialized(Int) N, @specialized(Double,Int) V:Numeric](graph: Graph[N] with Weighted[N,V],from: N, to: N): (V,Iterable[(N,N)]) = {
@@ -318,6 +300,41 @@ object Graph {
 			outgoingEdges ++= nextEdges
 		} while (!outgoingEdges.isEmpty && explored.size != nodesCount)
 		distance
+	}
+
+	/** Kosaraju's two dfs pass algorithm finds strongly connected components */
+	def findStronglyConnectedComponents[@specialized(Int) N](graph:Graph[N]): Iterable[Iterable[N]] = {
+		class SccNodeInfo {
+			var leader:Option[N] = None
+			var time:Int = 0
+		}
+		val attributes = new mutable.HashMap[N,SccNodeInfo]()
+		def attrOf(node:N):SccNodeInfo = attributes.getOrElseUpdate(node,{new SccNodeInfo})
+		// first pass
+		val reversed: Graph[N] = graph.reverse
+		var t:Int = 0
+		var s: Option[N] = None
+		val observer1 = new Observer[N] {
+			override def after(node:N) {
+				t = t + 1
+				attrOf(node).time = t
+			}
+		}
+		dfs(reversed,observer1,reversed.nodes)
+		// second pass
+		val ordered = (attributes map {case (node,attr) => (node,attr.time)}).toSeq sortBy {case (_,time) => -time} map {case (node,_) => node}
+		val observer2 = new Observer[N] {
+			override def start(node:N) {
+				s = Some(node)
+			}
+			override def before(node:N) {
+				attrOf(node).leader = s
+			}
+		}
+		dfs(graph,observer2,ordered)
+		// compute result
+		val result = (attributes groupBy {case (_,attr) => attr.leader.get}).toSeq sortBy {case (_,map) => -map.size} map {case (n,map) => map.keys}
+		result
 	}
 }
 

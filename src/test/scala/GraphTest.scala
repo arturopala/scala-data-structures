@@ -39,6 +39,15 @@ class GraphTest extends FunSpec {
 		    5 -> Seq()
 	    )
 
+	    /* acyclic */
+	    val graph4 = Graph[Int](
+		    5 -> Seq(2,3,4,6),
+		    2 -> Seq(3,6),
+		    3 -> Seq(6),
+		    4 -> Seq(2),
+	        6 -> Seq()
+	    )
+
         it("should have nodes and edges") {
             assert(graph1.nodes.size==4, "graph nodes count should be 4")
             assert(graph1.edges.size==4, "graph edges count should be 4")
@@ -92,6 +101,14 @@ class GraphTest extends FunSpec {
 	    it("should check cycles") {
 		    assert(Graph.hasCycles(graph2))
 		    assert(!Graph.hasCycles(graph3))
+	    }
+	    it("should sort topologically - graph3") {
+		    val order = Graph.sortTopologically(graph3)
+		    assert(order.sameElements(Seq(1, 2, 3, 4, 5)))
+	    }
+	    it("should sort topologically - graph4") {
+		    val order = Graph.sortTopologically(graph4)
+		    assert(order.sameElements(Seq(5, 4, 2, 3, 6)))
 	    }
 	    it("should compute shortest path - graph3") {
 		    val (distance,path) = Graph.findShortestPath(graph3,1,5)

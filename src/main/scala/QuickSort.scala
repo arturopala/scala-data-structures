@@ -1,34 +1,23 @@
+import collection.mutable.{Seq}
+
 object QuickSort {
 
-	def sort[T](array: Array[T])(pivotStrategy: (Array[T], Int, Int) => Int = chooseFirst _)(implicit ordering: Ordering[T]): Int = sort(array, 0, array.length)(pivotStrategy)
-
-	def sort[T](array: Array[T], start: Int, end: Int)(pivotStrategy: (Array[T], Int, Int) => Int)(implicit ordering: Ordering[T]): Int = {
-		var count = end - start - 1
-		val pivotElementIndex = partition(array, start, end, pivotStrategy)
-		if (pivotElementIndex > start) {
-			val leftCount = sort(array, start, pivotElementIndex)(pivotStrategy)
-			count = count + leftCount
-		}
-		if (pivotElementIndex + 1 < end) {
-			val rightCount = sort(array, pivotElementIndex + 1, end)(pivotStrategy)
-			count = count + rightCount
-		}
-		count
+	/** Sorts mutable sequence in-place */
+	def sort[T : Ordering](array: Seq[T]): Unit = sort(array, 0, array.length, chooseMedian[T] _)
+	def sort[T : Ordering](array: Seq[T], pivotStrategy: (Seq[T], Int, Int) => Int): Unit = sort(array, 0, array.length, pivotStrategy)
+	def sort[T : Ordering](array: Seq[T], start: Int, end: Int, pivotStrategy: (Seq[T], Int, Int) => Int): Unit = {
+		val i = partition(array, start, end, pivotStrategy)
+		if (i > start) sort(array, start, i, pivotStrategy)
+		if (i + 1 < end) sort(array, i + 1, end, pivotStrategy)
 	}
 
-	def partition[T](array: Array[T], start: Int, end: Int, pivotStrategy: (Array[T], Int, Int) => Int)(implicit ordering: Ordering[T]): Int = {
-
-		assert(start < end)
-
+	def partition[T : Ordering](array: Seq[T], start: Int, end: Int, pivotStrategy: (Seq[T], Int, Int) => Int): Int = {
+		val ordering = implicitly[Ordering[T]]
 		if (end - start == 1) return start
-		val pivotElementIndex = pivotStrategy(array, start, end)
-
-		assert(pivotElementIndex >= start)
-		assert(pivotElementIndex < end)
-
-		swap(array, pivotElementIndex, start)
+		val p = pivotStrategy(array, start, end)
+		swap(array, p, start)
 		val pivot = array(start)
-		var i = start;
+		var i = start
 		for (j <- start + 1 until end) {
 			if (ordering.lt(array(j), pivot)) {
 				i = i + 1
@@ -39,7 +28,7 @@ object QuickSort {
 		i
 	}
 
-	def swap[T](array: Array[T], from: Int, to: Int): Unit = {
+	def swap[T](array: Seq[T], from: Int, to: Int): Unit = {
 		if (from != to) {
 			val elem: T = array(to)
 			array(to) = array(from)
@@ -47,16 +36,15 @@ object QuickSort {
 		}
 	}
 
-	def chooseFirst(array: Array[_], start: Int, end: Int): Int = start
-
-	def chooseLast(array: Array[_], start: Int, end: Int): Int = end - 1
-
-	def chooseMedian[T](array: Array[T], start: Int, end: Int)(implicit ordering: Ordering[T]): Int = {
+	def chooseFirst(array: Seq[_], start: Int, end: Int): Int = start
+	def chooseLast(array: Seq[_], start: Int, end: Int): Int = end - 1
+	def chooseMedian[T : Ordering](array: Seq[T], start: Int, end: Int): Int = {
+		val ordering = implicitly[Ordering[T]]
+		import ordering._
 		val a = array(start)
 		val b = array(end - 1)
 		val middle = (start + end - 1) / 2
 		val c = array(middle)
-		import ordering._
 		(a >= b, a >= c, b >= c) match {
 			case (false, false, false) => end - 1 //a,b,c
 			case (false, false, true) => middle //a,c,b
