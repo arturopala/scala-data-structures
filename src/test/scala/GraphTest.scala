@@ -41,18 +41,18 @@ class GraphTest extends FunSpec {
 
 	    /* acyclic */
 	    val graph4 = Graph[Int](
-		    5 -> Seq(2,3,4,6),
-		    2 -> Seq(3,6),
 		    3 -> Seq(6),
 		    4 -> Seq(2),
-	        6 -> Seq()
+		    5 -> Seq(2,3,4,6),
+		    6 -> Seq(),
+		    2 -> Seq(3,6)
 	    )
 
         it("should have nodes and edges") {
             assert(graph1.nodes.size==4, "graph nodes count should be 4")
             assert(graph1.edges.size==4, "graph edges count should be 4")
         }
-        it("should have copyReversed graph") {
+        it("should have hardCopyReversed graph") {
             val reverse = graph1.reverse
             val redges = reverse.edges.toSeq
             val reversed2 = reverse.reverse

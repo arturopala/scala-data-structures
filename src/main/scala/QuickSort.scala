@@ -54,8 +54,6 @@ object QuickSort {
 			case (true, true, true) => end - 1 //c,b,a
 			case _ => throw new IllegalStateException
 		}
-
-
 	}
 
 }
