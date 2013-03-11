@@ -48,6 +48,20 @@ class GraphTest extends FunSpec {
 		    2 -> Seq(3,6)
 	    )
 
+	    val graph5 = Graph[Int](
+		    0 -> Seq(1,3),
+		    1 -> Seq(0,2,3),
+		    2 -> Seq(1,3),
+		    3 -> Seq(0,1,2)
+	    )
+
+	    val graph6 = Graph[Int](
+		    0 -> Seq(1,2,3),
+		    1 -> Seq(0,2,3),
+		    2 -> Seq(0,1,3),
+		    3 -> Seq(0,1,2)
+	    )
+
         it("should have nodes and edges") {
             assert(graph1.nodes.size==4, "graph nodes count should be 4")
             assert(graph1.edges.size==4, "graph edges count should be 4")
@@ -139,6 +153,22 @@ class GraphTest extends FunSpec {
 		    val nodes = Seq(7,37,59,82,99,115,133,165,188,197)
 		    val result = nodes map distance
 		    assert(result==List(2599, 2610, 2947, 2052, 2367, 2399, 2029, 2442, 2505, 3068))
+	    }
+	    it("should merge nodes") {
+		    val g1 = Graph.mergeNodes(graph5,1,0)
+		    assert(!g1.has(0))
+		    assert(g1.has(1))
+		    val g2 = Graph.mergeNodes(graph6,2,1)
+		    assert(!g2.has(1))
+		    assert(g2.has(2))
+	    }
+	    it("should find min cut count") {
+		    val graph = Graph.readFromAdjacentListFile(Path.fromString("src/main/resources/graph1.txt"))
+		    var count = Integer.MAX_VALUE
+		    for(i <- 1 to 20){
+			    count = Math.min(Graph.randomCutCount(graph),count)
+		    }
+		    assert(count==17)
 	    }
 	    /*it("should find strongly connected components - scc") {
 			val graph = Graph.readFromEdgeListFile(Path.fromString("src/main/resources/SCC.txt"))

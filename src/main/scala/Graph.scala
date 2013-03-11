@@ -1,11 +1,13 @@
+import collection.mutable
 import scala.specialized
 import scalax.file.Path
 import collection.mutable.{ArrayBuffer, Map => MutableMap, Seq => MutableSeq, HashMap, HashSet, Queue}
 
 trait Graph[@specialized(Int) N] {
-    def nodes: Iterable[N]
+    def nodes: Traversable[N]
     def adjacent: N => Traversable[N]
     def edges: Traversable[(N,N)]
+	def has(node: N): Boolean
     def reverse: Graph[N]
 	def nodesCount:Int
 	def edgesCount:Long
@@ -24,13 +26,17 @@ trait GenericGraph[@specialized(Int) N] extends Graph[N] {
     override def edges: Traversable[(N,N)] = new Traversable[(N, N)] {
 	    override def foreach[U](f: ((N, N)) => U):Unit = for(from <- nodes; to <- adjacent(from)) f((from,to))
     }
+	override def has(node: N): Boolean = nodes match {
+		case s:Set[N] => s.contains(node)
+		case _ => nodes exists (n => n==node)
+	}
     override def reverse:Graph[N] = new GenericReverseGraph[N](self)
     override def nodesCount: Int = nodes.size
     override def edgesCount: Long = nodes.foldLeft(0L){case (sum,node) => sum + adjacent(node).size}
 }
 
-class GenericReverseGraph[@specialized(Int) N](origin: Graph[N]) extends Graph[N] {
-    override def nodes: Iterable[N] = origin.nodes
+class GenericReverseGraph[@specialized(Int) N](origin: Graph[N]) extends GenericGraph[N] {
+    override def nodes: Traversable[N] = origin.nodes
     override val adjacent: N => Traversable[N] = node => new Traversable[N]{
         def foreach[U](f: (N) => U) {
             for (n <- origin.nodes if (origin.adjacent(n) match {
@@ -45,8 +51,6 @@ class GenericReverseGraph[@specialized(Int) N](origin: Graph[N]) extends Graph[N
 	    }
     }
     override val reverse = origin
-    override def nodesCount: Int = origin.nodesCount
-    override def edgesCount: Long = origin.edgesCount
 }
 
 class MapAsGraph[@specialized(Int) N](val nodeMap: Map[N,Traversable[N]]) extends GenericGraph[N] {
@@ -157,7 +161,7 @@ object Graph {
     }
 
 	def dfs[@specialized(Int) N](graph:Graph[N], observer: Observer[N]):Unit = dfs(graph, observer, graph.nodes)
-	def dfs[@specialized(Int) N](graph:Graph[N], observer: Observer[N], nodes:Iterable[N]):Unit = {
+	def dfs[@specialized(Int) N](graph:Graph[N], observer: Observer[N], nodes:Traversable[N]):Unit = {
 		val explored = new HashSet[N]()
 		for (node <- nodes){
 			if (!(explored contains node)){
@@ -252,7 +256,7 @@ object Graph {
 		val nodesCount = graph.nodesCount
 		val explored = new HashSet[N]()
 		val distance = new HashMap[N,V]()
-		val breadcrumbs = new ArrayBuffer[(N,N)]()
+		val backtrace = new MutableGraph[N]()
 		val outgoingEdges = new HashSet[(N,N)]()
 		var head = from
 		explored add from
@@ -263,8 +267,8 @@ object Graph {
 			val (t,h) = outgoingEdges minBy {case (t,h) => num.plus(distance(t),weight(t,h))}
 			explored add h
 			distance(h) = num.plus(distance(t),weight(t,h))
-			breadcrumbs += ((t,h))
-			outgoingEdges remove (t,h)
+			backtrace add ((h,t))
+			outgoingEdges remove ((t,h))
 			outgoingEdges --= (outgoingEdges filter {case (_,node) => node == h})
 			nextEdges = graph.adjacent(h) filterNot explored map (node => (h,node))
 			outgoingEdges ++= nextEdges
@@ -273,11 +277,10 @@ object Graph {
 		// compute resulting path
 		var path: List[(N,N)] = Nil
 		if(head==to){
-			val backgraph = Graph(breadcrumbs map (_.swap))
 			var next = to
 			do {
 				val node = next
-				next = backgraph.adjacent(node).minBy(n => distance(n))
+				next = backtrace.adjacent(node).minBy(n => distance(n))
 				val segment = (next,node)
 				path = segment :: path
 			} while(next!=from)
