@@ -1,6 +1,6 @@
 import scala.specialized
 import scalax.file.Path
-import collection.mutable.{ArrayBuffer, Map => MutableMap, Seq => MutableSeq, HashMap, HashSet, Queue}
+import collection.mutable.{ArrayBuffer, Map => MutableMap, Seq => MutableSeq, Set => MutableSet, HashMap, HashSet, Queue}
 
 trait Graph[@specialized(Int) N] {
     def nodes: Traversable[N]
