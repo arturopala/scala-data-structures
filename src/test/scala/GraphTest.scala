@@ -126,8 +126,8 @@ class GraphTest extends FunSpec {
 	    }
 	    it("should compute shortest path - graph3") {
 		    val (distance,path) = Graph.findShortestPath(graph3,1,5)
-		    assert(distance==4)
-		    assert(path==List((1,3), (3,5)))
+		    assert(distance==4,s"should be 4 but is $distance : $path")
+		    assert(path==List((1,3), (3,5)),s"$path")
 	    }
 	    it("should compute shortest path - dijkstraData") {
 		    val graph = Graph.readFromAdjacentWeightListFile(Path.fromString("src/main/resources/dijkstraData.txt"))
@@ -135,9 +135,9 @@ class GraphTest extends FunSpec {
 		    assert(graph.weight(200,108)==9976)
 		    assert(graph.adjacent(31).size==21)
 		    val path1 = Graph.findShortestPath(graph,1,197)
-		    assert(path1==(3068,List((1,114), (114,103), (103,110), (110,197))))
+		    assert(path1==(3068,List((1,114), (114,103), (103,110), (110,197))),s"$path1")
 		    val path2 = Graph.findShortestPath(graph,1,115)
-		    assert(path2==(2399,List((1,80), (80,115))))
+		    assert(path2==(2399,List((1,80), (80,115))),s"$path2")
 	    }
 	    it("should compute all shortest paths - graph3") {
 		    val distance = Graph.findShortestPaths(graph3,1)
@@ -156,11 +156,11 @@ class GraphTest extends FunSpec {
 	    }
 	    it("should merge nodes") {
 		    val g1 = Graph.mergeNodes(graph5,1,0)
-		    assert(!g1.has(0))
-		    assert(g1.has(1))
+		    assert(!g1.contains(0))
+		    assert(g1.contains(1))
 		    val g2 = Graph.mergeNodes(graph6,2,1)
-		    assert(!g2.has(1))
-		    assert(g2.has(2))
+		    assert(!g2.contains(1))
+		    assert(g2.contains(2))
 	    }
 	    it("should find min cut count") {
 		    val graph = Graph.readFromAdjacentListFile(Path.fromString("src/main/resources/graph1.txt"))

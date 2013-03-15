@@ -1,4 +1,3 @@
-import collection.mutable
 import scala.specialized
 import scalax.file.Path
 import collection.mutable.{ArrayBuffer, Map => MutableMap, Seq => MutableSeq, HashMap, HashSet, Queue}
@@ -7,7 +6,7 @@ trait Graph[@specialized(Int) N] {
     def nodes: Traversable[N]
     def adjacent: N => Traversable[N]
     def edges: Traversable[(N,N)]
-	def has(node: N): Boolean
+	def contains(node: N): Boolean
     def reverse: Graph[N]
 	def nodesCount:Int
 	def edgesCount:Long
@@ -26,7 +25,7 @@ trait GenericGraph[@specialized(Int) N] extends Graph[N] {
     override def edges: Traversable[(N,N)] = new Traversable[(N, N)] {
 	    override def foreach[U](f: ((N, N)) => U):Unit = for(from <- nodes; to <- adjacent(from)) f((from,to))
     }
-	override def has(node: N): Boolean = nodes match {
+	override def contains(node: N): Boolean = nodes match {
 		case s:Set[N] => s.contains(node)
 		case _ => nodes exists (n => n==node)
 	}
@@ -244,12 +243,12 @@ object Graph {
 		priorities map {case (node,_) => node}
 	}
 
-	/** Dijkstra algorithm finds shortest path in acyclic directed graph*/ 
+	/** Dijkstra algorithm finds shortest path in directed graph*/ 
 	def findShortestPath[@specialized(Int) N, @specialized(Double,Int) V:Numeric](graph: Graph[N] with Weighted[N,V],from: N, to: N): (V,Iterable[(N,N)]) = {
 		findShortestPath(graph,from,to,graph.weight)
 	}
 	
-	/** Dijkstra algorithm finds shortest path in acyclic directed graph */
+	/** Dijkstra algorithm finds shortest path in directed graph */
 	def findShortestPath[@specialized(Int) N, @specialized(Double,Int) V:Numeric](graph: Graph[N],from: N, to: N, weight: (N,N) => V): (V,Iterable[(N,N)]) = {
 		val num: Numeric[V] = implicitly[Numeric[V]]
 		if(from==to || graph.adjacent(from).isEmpty) return (num.zero,Nil)
@@ -257,22 +256,27 @@ object Graph {
 		val explored = new HashSet[N]()
 		val distance = new HashMap[N,V]()
 		val backtrace = new MutableGraph[N]()
-		val outgoingEdges = new HashSet[(N,N)]()
+		implicit val ordering = new Ordering[(N,N,V)] {
+			def compare(x: (N, N, V), y: (N, N, V)): Int =  {
+				num.toInt(num.minus(num.plus(distance(x._1),x._3),num.plus(distance(y._1),y._3)))
+			}
+		}
+		val outgoingEdges = new MinHeap[(N,N,V)](Math.min(graph.nodesCount,1024))
 		var head = from
 		explored add from
 		distance(from) = num.zero
-		var nextEdges = graph.adjacent(from) filterNot explored map (node => (from,node))
-		outgoingEdges ++= nextEdges
+		var nextEdges = graph.adjacent(from) filterNot explored map (node => (from,node,weight(from,node)))
+		outgoingEdges insert nextEdges
 		do {
-			val (t,h) = outgoingEdges minBy {case (t,h) => num.plus(distance(t),weight(t,h))}
-			explored add h
-			distance(h) = num.plus(distance(t),weight(t,h))
-			backtrace add ((h,t))
-			outgoingEdges remove ((t,h))
-			outgoingEdges --= (outgoingEdges filter {case (_,node) => node == h})
-			nextEdges = graph.adjacent(h) filterNot explored map (node => (h,node))
-			outgoingEdges ++= nextEdges
-			head = h
+			for ((t,h,w) <- outgoingEdges.extract){
+				explored add h
+				distance(h) = num.plus(distance(t),w)
+				backtrace add ((h,t))
+				outgoingEdges remove (outgoingEdges filter {case (_,node,_) => node == h})
+				nextEdges = graph.adjacent(h) filterNot explored map (node => (h,node,weight(h,node)))
+				outgoingEdges insert nextEdges
+				head = h
+			}
 		} while (head!=to && !outgoingEdges.isEmpty && explored.size != nodesCount)
 		// compute resulting path
 		var path: List[(N,N)] = Nil
@@ -288,31 +292,38 @@ object Graph {
 		(distance(to), path)
 	}
 
-	/** Dijkstra algorithm finds all shortest paths starting at given node in acyclic directed graph */
+	/** Dijkstra algorithm finds all shortest paths starting at given node in directed graph */
 	def findShortestPaths[@specialized(Int) N, @specialized(Double,Int) V:Numeric](graph: Graph[N] with Weighted[N,V],from: N): scala.collection.Map[N,V] = {
 		findShortestPaths(graph,from,graph.weight)
 	}
 
-	/** Dijkstra algorithm finds all shortest paths starting at given node in acyclic directed graph */
+	/** Dijkstra algorithm finds all shortest paths starting at given node in directed graph */
 	def findShortestPaths[@specialized(Int) N, @specialized(Double,Int) V:Numeric](graph: Graph[N],from: N, weight: (N,N) => V): scala.collection.Map[N,V] = {
 		val num: Numeric[V] = implicitly[Numeric[V]]
 		if(graph.adjacent(from).isEmpty) return Map.empty
 		val nodesCount = graph.nodesCount
 		val explored = new HashSet[N]()
 		val distance = new HashMap[N,V]()
-		val outgoingEdges = new HashSet[(N,N)]()
+		implicit val ordering = new Ordering[(N,N,V)] {
+			def compare(x: (N, N, V), y: (N, N, V)): Int =  {
+				num.toInt(num.minus(num.plus(distance(x._1),x._3),num.plus(distance(y._1),y._3)))
+			}
+		}
+		val outgoingEdges = new MinHeap[(N,N,V)](Math.min(graph.nodesCount,1024))
+		var head = from
 		explored add from
 		distance(from) = num.zero
-		var nextEdges = graph.adjacent(from) filterNot explored map (node => (from,node))
-		outgoingEdges ++= nextEdges
+		var nextEdges = graph.adjacent(from) filterNot explored map (node => (from,node,weight(from,node)))
+		outgoingEdges insert nextEdges
 		do {
-			val (t,h) = outgoingEdges minBy {case (t,h) => num.plus(distance(t),weight(t,h))}
-			explored add h
-			distance(h) = num.plus(distance(t),weight(t,h))
-			outgoingEdges remove (t,h)
-			outgoingEdges --= (outgoingEdges filter {case (_,node) => node == h})
-			nextEdges = graph.adjacent(h) filterNot explored map (node => (h,node))
-			outgoingEdges ++= nextEdges
+			for ((t,h,w) <- outgoingEdges.extract){
+				explored add h
+				distance(h) = num.plus(distance(t),w)
+				outgoingEdges remove (outgoingEdges.view filter {case (_,node,_) => node == h})
+				nextEdges = graph.adjacent(h) filterNot explored map (node => (h,node,weight(h,node)))
+				outgoingEdges insert nextEdges
+				head = h
+			}
 		} while (!outgoingEdges.isEmpty && explored.size != nodesCount)
 		distance
 	}
