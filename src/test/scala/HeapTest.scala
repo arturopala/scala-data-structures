@@ -1,4 +1,5 @@
 import org.scalatest.FunSpec
+import scalax.file.Path
 
 class HeapTest extends FunSpec {
 	
@@ -10,6 +11,13 @@ class HeapTest extends FunSpec {
         heap insert 2
         heap insert 3
         heap insert 999
+	    val maxHeap = new MaxHeap[Int]
+	    maxHeap insert 1221
+	    maxHeap insert 1101
+	    maxHeap insert 100
+	    maxHeap insert 2
+	    maxHeap insert 3
+	    maxHeap insert 999
     }
 
 	describe("Heap") {
@@ -26,9 +34,13 @@ class HeapTest extends FunSpec {
 			assert(heap.parent(6)==3, s"parent of 6 should be 3")
 			assert(heap.parent(7)==3, s"parent of 7 should be 3")
 		}
-		it ("should insert element while maintaining heap property") {
+		it ("should insert element while maintaining min-heap property") {
             val f = fixture; import f._
 			assert(heap.head==2, s"heap head should be 2 but is ${heap.head}")
+		}
+		it ("should insert element while maintaining max-heap property") {
+			val f = fixture; import f._
+			assert(maxHeap.head==1221, s"heap head should be 2 but is ${maxHeap.head}")
 		}
 		it ("should extract head while maintaining heap property") {
             val f = fixture; import f._
@@ -50,6 +62,34 @@ class HeapTest extends FunSpec {
             heap.extract
             assert(heap.head==1101, s"heap head should be 1101 but is ${heap.head}")
         }
+		it("should compute sum of moving medians") {
+			val path = Path.fromString("src/main/resources/Median.txt")
+			var sum = 0
+			val minheap = new MinHeap[Int]()
+			val maxheap = new MaxHeap[Int]()
+			for (line <- path.lines()) {
+				val num = line.trim.toInt
+				if(maxheap.isEmpty){
+					maxheap insert num
+				} else {
+					if(num <= maxheap.head) {
+						maxheap insert num
+					} else {
+						minheap insert num
+					}
+				}
+				if (maxheap.size > minheap.size + 1) {
+					minheap insert (maxheap.extract)
+				} else if (minheap.size > maxheap.size) {
+					maxheap insert (minheap.extract)
+				}
+				val median = maxheap.head
+				sum = sum + median
+				if (sum >= 10000) sum = sum % 10000
+
+			}
+			assert(sum==1213)
+		}
 	}
 	
 }
