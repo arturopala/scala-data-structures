@@ -124,6 +124,8 @@ trait GenericHeap[@specialized(Int, Long, Double) N] extends Heap[N] {
             bubbleDown(i)
         }
     }
+    
+    override final def isEmpty: Boolean = count==0 
 
 }
 
