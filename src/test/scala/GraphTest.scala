@@ -1,3 +1,5 @@
+package org.encalmo.algorithms
+
 import org.scalatest.FunSpec
 import scala.Predef._
 import scalax.file.Path

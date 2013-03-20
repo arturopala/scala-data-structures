@@ -1,9 +1,11 @@
+package org.encalmo.algorithms
+
 import collection.mutable.{Seq}
 
+/** Sorts mutable sequences in-place */
 object QuickSort {
 
-	/** Sorts mutable sequence in-place */
-	def sort[T : Ordering](array: Seq[T]): Unit = sort(array, 0, array.length, chooseMedian[T] _)
+	def sort[T : Ordering](array: Seq[T]): Unit = sort(array, 0, array.length, random _)
 	def sort[T : Ordering](array: Seq[T], pivotStrategy: (Seq[T], Int, Int) => Int): Unit = sort(array, 0, array.length, pivotStrategy)
 	def sort[T : Ordering](array: Seq[T], start: Int, end: Int, pivotStrategy: (Seq[T], Int, Int) => Int): Unit = {
 		val i = partition(array, start, end, pivotStrategy)
@@ -36,9 +38,9 @@ object QuickSort {
 		}
 	}
 
-	def chooseFirst(array: Seq[_], start: Int, end: Int): Int = start
-	def chooseLast(array: Seq[_], start: Int, end: Int): Int = end - 1
-	def chooseMedian[T : Ordering](array: Seq[T], start: Int, end: Int): Int = {
+	def first(array: Seq[_], start: Int, end: Int): Int = start
+	def last(array: Seq[_], start: Int, end: Int): Int = end - 1
+	def median[T : Ordering](array: Seq[T], start: Int, end: Int): Int = {
 		val ordering = implicitly[Ordering[T]]
 		import ordering._
 		val a = array(start)
@@ -55,5 +57,6 @@ object QuickSort {
 			case _ => throw new IllegalStateException
 		}
 	}
+	def random(array: Seq[_], start: Int, end: Int): Int = start + (Math.random()*(end-start)).toInt
 
 }

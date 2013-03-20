@@ -1,3 +1,5 @@
+package org.encalmo.algorithms
+
 object InversionCounter {
  
   

@@ -1,3 +1,5 @@
+package org.encalmo.algorithms
+
 import org.scalatest.FunSpec
 import scalax.file.Path
 import scala.collection.mutable.HashMap

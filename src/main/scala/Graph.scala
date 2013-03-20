@@ -1,3 +1,5 @@
+package org.encalmo.algorithms
+
 import scala.specialized
 import scalax.file.Path
 import collection.mutable.{ArrayBuffer, Map => MutableMap, Seq => MutableSeq, Set => MutableSet, HashMap, HashSet, Queue}
@@ -226,30 +228,26 @@ object Graph {
 		}
 	}
 	
-	def sortTopologically[@specialized(Int) N](graph: Graph[N]): Iterable[N] = {
+	def sortTopologically[@specialized(Int) N](graph: Graph[N]): List[N] = {
 		var counter = graph.nodesCount
-		var priorities = new ArrayBuffer[(N,Int)](graph.nodesCount)
+		var priorities: List[N] = Nil
 		val observer = new Observer[N] {
 			override def after(node: N) {
-				priorities += ((node,counter))
+				priorities = node :: priorities
 				counter = counter - 1
 			}
 		}
 		dfs(graph,observer)
-		implicit val ordering = new Ordering[(N,Int)] {
-			def compare(x: (N, Int), y: (N, Int)): Int = x._2 - y._2
-		}
-		QuickSort.sort(priorities)
-		priorities map {case (node,_) => node}
+		priorities
 	}
 
 	/** Dijkstra algorithm finds shortest path in directed graph*/ 
-	def findShortestPath[@specialized(Int) N, @specialized(Double,Int) V:Numeric](graph: Graph[N] with Weighted[N,V],from: N, to: N): (V,Iterable[(N,N)]) = {
+	def findShortestPath[@specialized(Int) N, @specialized(Double,Int) V:Numeric](graph: Graph[N] with Weighted[N,V],from: N, to: N): (V,List[(N,N)]) = {
 		findShortestPath(graph,from,to,graph.weight)
 	}
 	
 	/** Dijkstra algorithm finds shortest path in directed graph */
-	def findShortestPath[@specialized(Int) N, @specialized(Double,Int) V:Numeric](graph: Graph[N],from: N, to: N, weight: (N,N) => V): (V,Iterable[(N,N)]) = {
+	def findShortestPath[@specialized(Int) N, @specialized(Double,Int) V:Numeric](graph: Graph[N],from: N, to: N, weight: (N,N) => V): (V,List[(N,N)]) = {
 		val num: Numeric[V] = implicitly[Numeric[V]]
 		if(from==to || graph.adjacent(from).isEmpty) return (num.zero,Nil)
 		val nodesCount = graph.nodesCount
@@ -328,7 +326,7 @@ object Graph {
 		distance
 	}
 
-	/* Kosaraju's two dfs pass algorithm finds strongly connected components */
+	/* Kosaraju's 2-dfs pass algorithm finds strongly connected components */
 	def findStronglyConnectedComponents[@specialized(Int) N](graph:Graph[N]): Iterable[Iterable[N]] = {
 		class SccNodeInfo {
 			var leader:Option[N] = None

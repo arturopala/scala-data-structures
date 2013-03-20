@@ -1,3 +1,5 @@
+package org.encalmo.algorithms
+
 import annotation.tailrec
 import collection.mutable
 import collection.mutable.{Buffer, ArrayBuffer, Map}

@@ -1,3 +1,5 @@
+package org.encalmo.algorithms
+
 import org.junit.Assert._
 import org.junit.Test
 import scalax.file.Path
