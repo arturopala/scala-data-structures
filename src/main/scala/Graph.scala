@@ -169,7 +169,7 @@ object Graph {
 		for (node <- nodes){
 			if (!(explored contains node)){
 				visitor start node
-				dfs2(graph,node,visitor,explored)
+				dfsi(graph,node,visitor,explored)
 			}
 		}
 	}
@@ -187,21 +187,22 @@ object Graph {
 	}
 
     /** Depth-first search (iterative) of the graph starting at given node */
-    def dfs2[@specialized(Int) N](graph:Graph[N], source:N, visitor: DfsVisitor[N], explored:HashSet[N] = HashSet[N]()):Unit = {
+    def dfsi[@specialized(Int) N](graph:Graph[N], source:N, visitor: DfsVisitor[N], explored:HashSet[N] = HashSet[N]()):Unit = {
         val stack = new Stack[N]()
+	    explored add source
         stack.push(source)
         visitor before source
         while (!stack.isEmpty){
             val node = stack.top
-            graph.adjacent(node) find (n => !(explored.contains(n) || stack.contains(n))) match {
+            graph.adjacent(node) find (n => !explored.contains(n)) match {
                 case Some(next) => {
+	                explored add next
                     stack.push(next)
-                    visitor before next
                     visitor edge ((node,next))
+	                visitor before next
                 }
                 case None => {
                     stack.pop()
-                    explored add node
                     visitor after node
                 }
             }
@@ -374,43 +375,38 @@ object Graph {
 	}
 
 	/* Kosaraju's 2-dfs pass algorithm finds strongly connected components */
-	def findStronglyConnectedComponents[@specialized(Int) N](graph:Graph[N]): Iterable[Iterable[N]] = {
-		class SccNodeInfo {
-			var leader:Option[N] = None
-			var time:Int = 0
-		}
-		val attributes = new HashMap[N,SccNodeInfo]()
-		def attrOf(node:N):SccNodeInfo = attributes.getOrElseUpdate(node,{new SccNodeInfo})
+	def findStronglyConnectedComponents[@specialized(Int) N](graph:Graph[N]): Traversable[Traversable[N]] = {
+		val times = new HashMap[N,Int]()
 		val reversed: Graph[N] = graph.reverse
-		var t:Int = 0
-		var s: Option[N] = None
+		var time:Int = 0
 		// first dfs pass
-		val observer1 = new DfsVisitor[N] {
+		val visitor1 = new DfsVisitor[N] {
 			override def after(node:N) {
-				t = t + 1
-				attrOf(node).time = t
+				time = time + 1
+				times(node) = time
 			}
 		}
-		dfs(reversed,observer1)
-		// nodes sorting by reverse time
-		val times: MutableSeq[(N,Int)] = MutableSeq() ++ (attributes.view map {case (node,attr) => (node,attr.time)})
-		implicit val ordering = new Ordering[(N,Int)] {
-			def compare(x: (N, Int), y: (N, Int)): Int = y._2 - x._2
+		dfs(reversed,visitor1)
+		// sorting nodes by reversed entry time
+		val ordered = MutableSeq[N]() ++ graph.nodes
+		implicit val ordering1 = new Ordering[N] {
+			def compare(x: N, y: N): Int = times(y) - times(x)
 		}
-		QuickSort.sort(times)
-		val ordered = times.view map {case (node,_) => node}
-		val observer2 = new DfsVisitor[N] {
+		QuickSort.sort(ordered)
+		// second dfs pass
+		val leaders = new HashMap[N,N]()
+		var leader: Option[N] = None
+		val visitor2 = new DfsVisitor[N] {
 			override def start(node:N) {
-				s = Some(node)
+				leader = Some(node)
 			}
 			override def before(node:N) {
-				attrOf(node).leader = s
+				leaders(node) = leader.get
 			}
 		}
-		// second dfs pass
-		dfs(graph,observer2,ordered)
+		dfs(graph,visitor2,ordered)
 		// result computing
-		val result = (attributes groupBy {case (_,attr) => attr.leader.get}).toSeq sortBy {case (_,map) => -map.size} map {case (n,map) => map.keys}
+		val result = (graph.nodes groupBy leaders).toSeq sortBy {case (_,seq) => -seq.size} map {case (_,seq) => seq}
 		result
 	}
 

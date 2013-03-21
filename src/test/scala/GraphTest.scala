@@ -97,7 +97,7 @@ class GraphTest extends FunSpec {
         it("should find strongly connected components") {
             val graph = graph2
             val result = Graph.findStronglyConnectedComponents(graph)
-            assert(result.size==3)
+            assert(result.size==3,s"should be 3 but is ${result.size}")
         }
 	    it("should read adjacent list graph from file") {
 		    assert(minCutGraph.nodesCount==200)
@@ -195,11 +195,9 @@ class GraphTest extends FunSpec {
 		    assert(count==17)
 	    }
 	    it("should find strongly connected components - scc") {
-			assert(sccGraph!=null)
-			Console.println(sccGraph.nodesCount)
-			Console.println(sccGraph.edgesCount)
 			val result = Graph.findStronglyConnectedComponents(sccGraph)
-			for(scc <- result.take(100)) Console.println(scc.size)
+		    val ten: Seq[Int] = (result.take(10) map (_.size)).toSeq
+			assert(ten.sameElements(Seq(434821, 968, 459, 313, 211, 205, 197, 177, 162, 152)))
 		}
     }
 
