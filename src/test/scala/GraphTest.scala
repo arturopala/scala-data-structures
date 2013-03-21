@@ -108,12 +108,21 @@ class GraphTest extends FunSpec {
 		    assert(dijkstraGraph.weight(200,108)==9976)
 		    assert(dijkstraGraph.adjacent(31).size==21)
 	    }
-	    it("should breath-first search the graph") {
+	    it("should breath-first search the graph - sccGraph") {
 		    var counter = 0
 		    Graph.bfs(sccGraph,{n:Int => counter = counter + 1})
 		    assert(counter==sccGraph.nodesCount,s"should be ${sccGraph.nodesCount} but is ${counter}")
 	    }
-	    it("should depth-first search the graph") {
+        it("should depth-first search the graph - dijkstraGraph") {
+            var counter = 0
+            Graph.dfs(dijkstraGraph,new Graph.DfsVisitor[Int] {
+                override def before(node:Int) {
+                    counter = counter + 1
+                }
+            })
+            assert(counter==dijkstraGraph.nodesCount,s"should be ${dijkstraGraph.nodesCount} but is ${counter}")
+        }
+	    it("should depth-first search the graph - sccGraph") {
 		    var counter = 0
 		    Graph.dfs(sccGraph,new Graph.DfsVisitor[Int] {
 			    override def before(node:Int) {
