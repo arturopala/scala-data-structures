@@ -64,8 +64,8 @@ class GraphTest extends FunSpec {
 		    3 -> Seq(0,1,2)
 	    )
 
-	    lazy val sccGraph = Graph.readFromEdgeListFile(Path.fromString("src/main/resources/SCC.txt"))
-	    lazy val dijkstraGraph = Graph.readFromAdjacentWeightListFile(Path.fromString("src/main/resources/dijkstraData.txt"))
+	    lazy val veryLargeGraph = Graph.readFromEdgeListFile(Path.fromString("src/main/resources/SCC.txt"))
+	    lazy val weightedGraph = Graph.readFromAdjacentWeightListFile(Path.fromString("src/main/resources/dijkstraData.txt"))
 	    lazy val minCutGraph = Graph.readFromAdjacentListFile(Path.fromString("src/main/resources/graph1.txt"))
 
         it("should have nodes and edges") {
@@ -104,32 +104,32 @@ class GraphTest extends FunSpec {
 		    assert(minCutGraph.adjacent(82).size==27)
 	    }
 	    it("should read adjacent-weight list graph from file") {
-		    assert(dijkstraGraph.nodesCount==200)
-		    assert(dijkstraGraph.weight(200,108)==9976)
-		    assert(dijkstraGraph.adjacent(31).size==21)
+		    assert(weightedGraph.nodesCount==200)
+		    assert(weightedGraph.weight(200,108)==9976)
+		    assert(weightedGraph.adjacent(31).size==21)
 	    }
 	    it("should breath-first search the graph - sccGraph") {
 		    var counter = 0
-		    Graph.bfs(sccGraph,{n:Int => counter = counter + 1})
-		    assert(counter==sccGraph.nodesCount,s"should be ${sccGraph.nodesCount} but is ${counter}")
+		    Graph.bfs(veryLargeGraph,{n:Int => counter = counter + 1})
+		    assert(counter==veryLargeGraph.nodesCount,s"should be ${veryLargeGraph.nodesCount} but is ${counter}")
 	    }
         it("should depth-first search the graph - dijkstraGraph") {
             var counter = 0
-            Graph.dfs(dijkstraGraph,new Graph.DfsVisitor[Int] {
+            Graph.dfs(weightedGraph,new Graph.DfsVisitor[Int] {
                 override def before(node:Int) {
                     counter = counter + 1
                 }
             })
-            assert(counter==dijkstraGraph.nodesCount,s"should be ${dijkstraGraph.nodesCount} but is ${counter}")
+            assert(counter==weightedGraph.nodesCount,s"should be ${weightedGraph.nodesCount} but is ${counter}")
         }
 	    it("should depth-first search the graph - sccGraph") {
 		    var counter = 0
-		    Graph.dfs(sccGraph,new Graph.DfsVisitor[Int] {
+		    Graph.dfs(veryLargeGraph,new Graph.DfsVisitor[Int] {
 			    override def before(node:Int) {
 				    counter = counter + 1
 			    }
 		    })
-		    assert(counter==sccGraph.nodesCount,s"should be ${sccGraph.nodesCount} but is ${counter}")
+		    assert(counter==veryLargeGraph.nodesCount,s"should be ${veryLargeGraph.nodesCount} but is ${counter}")
 	    }
 	    it("should find cycles - graph2") {
 		    val cycles = Graph.findCycles(graph2)
@@ -154,30 +154,30 @@ class GraphTest extends FunSpec {
 	    it("should compute shortest path - graph3") {
 		    val (distance,path) = Graph.findShortestPath(graph3,1,5)
 		    assert(distance==4,s"should be 4 but is $distance : $path")
-		    assert(path==List((1,3), (3,5)),s"$path")
+		    assert(path===List((1,3), (3,5)),s"$path")
 	    }
 	    it("should compute shortest path - dijkstraData") {
-		    assert(dijkstraGraph.nodesCount==200)
-		    assert(dijkstraGraph.weight(200,108)==9976)
-		    assert(dijkstraGraph.adjacent(31).size==21)
-		    val path1 = Graph.findShortestPath(dijkstraGraph,1,197)
-		    assert(path1==(3068,List((1,114), (114,103), (103,110), (110,197))),s"$path1")
-		    val path2 = Graph.findShortestPath(dijkstraGraph,1,115)
-		    assert(path2==(2399,List((1,80), (80,115))),s"$path2")
+		    assert(weightedGraph.nodesCount==200)
+		    assert(weightedGraph.weight(200,108)==9976)
+		    assert(weightedGraph.adjacent(31).size==21)
+		    val path1 = Graph.findShortestPath(weightedGraph,1,197)
+		    assert(path1===(3068,List((1,114), (114,103), (103,110), (110,197))))
+		    val path2 = Graph.findShortestPath(weightedGraph,1,115)
+		    assert(path2===(2399,List((1,80), (80,115))),s"$path2")
 	    }
 	    it("should compute all shortest paths - graph3") {
 		    val distance = Graph.findShortestPaths(graph3,1)
 		    assert(distance.size==5)
-		    assert(distance==Map(1 -> 0, 2 -> 1, 3 -> 2, 4 -> 3, 5 -> 4))
+		    assert(distance===Map(1 -> 0, 2 -> 1, 3 -> 2, 4 -> 3, 5 -> 4))
 	    }
 	    it("should compute all shortest paths - dijkstraData") {
-		    assert(dijkstraGraph.nodesCount==200)
-		    assert(dijkstraGraph.weight(200,108)==9976)
-		    assert(dijkstraGraph.adjacent(31).size==21)
-		    val distance = Graph.findShortestPaths(dijkstraGraph,1)
+		    assert(weightedGraph.nodesCount==200)
+		    assert(weightedGraph.weight(200,108)==9976)
+		    assert(weightedGraph.adjacent(31).size==21)
+		    val distance = Graph.findShortestPaths(weightedGraph,1)
 		    val nodes = Seq(7,37,59,82,99,115,133,165,188,197)
 		    val result = nodes map distance
-		    assert(result==List(2599, 2610, 2947, 2052, 2367, 2399, 2029, 2442, 2505, 3068))
+		    assert(result===List(2599, 2610, 2947, 2052, 2367, 2399, 2029, 2442, 2505, 3068))
 	    }
 	    it("should merge nodes") {
 		    val g1 = Graph.mergeNodes(graph5,1,0)
@@ -195,7 +195,7 @@ class GraphTest extends FunSpec {
 		    assert(count==17)
 	    }
 	    it("should find strongly connected components - scc") {
-			val result = Graph.findStronglyConnectedComponents(sccGraph)
+			val result = Graph.findStronglyConnectedComponents(veryLargeGraph)
 		    val ten: Seq[Int] = (result.take(10) map (_.size)).toSeq
 			assert(ten.sameElements(Seq(434821, 968, 459, 313, 211, 205, 197, 177, 162, 152)))
 		}
