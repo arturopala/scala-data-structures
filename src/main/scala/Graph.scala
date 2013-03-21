@@ -376,35 +376,33 @@ object Graph {
 
 	/* Kosaraju's 2-dfs pass algorithm finds strongly connected components */
 	def findStronglyConnectedComponents[@specialized(Int) N](graph:Graph[N]): Traversable[Traversable[N]] = {
-		val times = new HashMap[N,Int]()
 		val reversed: Graph[N] = graph.reverse
-		var time:Int = 0
+		val nodes = MutableSeq[N]() ++ graph.nodes
 		// first dfs pass
-		val visitor1 = new DfsVisitor[N] {
+		val times = new HashMap[N,Int]()
+		dfs(reversed, new DfsVisitor[N] {
+			var time:Int = 0
 			override def after(node:N) {
 				time = time + 1
 				times(node) = time
 			}
-		}
-		dfs(reversed,visitor1)
+		}, nodes)
 		// sorting nodes by reversed entry time
-		val ordered = MutableSeq[N]() ++ graph.nodes
-		implicit val ordering1 = new Ordering[N] {
+		implicit val ordering = new Ordering[N] {
 			def compare(x: N, y: N): Int = times(y) - times(x)
 		}
-		QuickSort.sort(ordered)
+		QuickSort.sort(nodes)
 		// second dfs pass
 		val leaders = new HashMap[N,N]()
-		var leader: Option[N] = None
-		val visitor2 = new DfsVisitor[N] {
+		dfs(graph, new DfsVisitor[N] {
+			var leader: Option[N] = None
 			override def start(node:N) {
 				leader = Some(node)
 			}
 			override def before(node:N) {
 				leaders(node) = leader.get
 			}
-		}
-		dfs(graph,visitor2,ordered)
+		}, nodes)
 		// result computing
 		val result = (graph.nodes groupBy leaders).toSeq sortBy {case (_,seq) => -seq.size} map {case (_,seq) => seq}
 		result
