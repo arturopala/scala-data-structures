@@ -64,9 +64,9 @@ class GraphTest extends FunSpec {
 		    3 -> Seq(0,1,2)
 	    )
 
-	    val sccGraph = Graph.readFromEdgeListFile(Path.fromString("src/main/resources/SCC.txt"))
-	    val dijkstraGraph = Graph.readFromAdjacentWeightListFile(Path.fromString("src/main/resources/dijkstraData.txt"))
-	    val minCutGraph = Graph.readFromAdjacentListFile(Path.fromString("src/main/resources/graph1.txt"))
+	    lazy val sccGraph = Graph.readFromEdgeListFile(Path.fromString("src/main/resources/SCC.txt"))
+	    lazy val dijkstraGraph = Graph.readFromAdjacentWeightListFile(Path.fromString("src/main/resources/dijkstraData.txt"))
+	    lazy val minCutGraph = Graph.readFromAdjacentListFile(Path.fromString("src/main/resources/graph1.txt"))
 
         it("should have nodes and edges") {
             assert(graph1.nodes.size==4, "graph nodes count should be 4")
@@ -87,12 +87,12 @@ class GraphTest extends FunSpec {
         it("should search graph with dfs") {
             val graph = graph2
             var counter = 0
-            Graph.dfs(graph,new Graph.DfsObserver[Int] {
+            Graph.dfs(graph,new Graph.DfsVisitor[Int] {
                 override def before(node:Int) {
                     counter = counter + 1
                 }
             })
-            assert(counter==graph.nodesCount)
+            assert(counter==graph.nodesCount,s"counter should be ${graph.nodesCount} but is $counter")
         }
         it("should find strongly connected components") {
             val graph = graph2
@@ -115,7 +115,7 @@ class GraphTest extends FunSpec {
 	    }
 	    it("should depth-first search the graph") {
 		    var counter = 0
-		    Graph.dfs(sccGraph,new Graph.DfsObserver[Int] {
+		    Graph.dfs(sccGraph,new Graph.DfsVisitor[Int] {
 			    override def before(node:Int) {
 				    counter = counter + 1
 			    }
@@ -140,7 +140,7 @@ class GraphTest extends FunSpec {
 	    }
 	    it("should sort topologically - graph4") {
 		    val order = Graph.sortTopologically(graph4)
-		    assert(order.sameElements(Seq(5, 4, 2, 3, 6)))
+		    assert(order.sameElements(Seq(5, 4, 2, 3, 6)),s"wrong order $order")
 	    }
 	    it("should compute shortest path - graph3") {
 		    val (distance,path) = Graph.findShortestPath(graph3,1,5)
@@ -180,18 +180,18 @@ class GraphTest extends FunSpec {
 	    }
 	    it("should find min cut count") {
 		    var count = Integer.MAX_VALUE
-		    for(i <- 1 to 20){
+		    for(i <- 1 to 27){
 			    count = Math.min(Graph.randomCutCount(minCutGraph),count)
 		    }
 		    assert(count==17)
 	    }
-	    /*it("should find strongly connected components - scc") {
+	    it("should find strongly connected components - scc") {
 			assert(sccGraph!=null)
 			Console.println(sccGraph.nodesCount)
 			Console.println(sccGraph.edgesCount)
 			val result = Graph.findStronglyConnectedComponents(sccGraph)
 			for(scc <- result.take(100)) Console.println(scc.size)
-		}*/
+		}
     }
 
 }

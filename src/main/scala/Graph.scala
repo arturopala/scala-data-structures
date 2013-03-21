@@ -2,7 +2,7 @@ package org.encalmo.algorithms
 
 import scala.specialized
 import scalax.file.Path
-import collection.mutable.{ArrayBuffer, Map => MutableMap, Seq => MutableSeq, HashMap, HashSet, Queue}
+import collection.mutable.{ArrayBuffer, Map => MutableMap, Seq => MutableSeq, HashMap, HashSet, Queue, Stack}
 
 trait Graph[@specialized(Int) N] {
     def nodes: Traversable[N]
@@ -154,7 +154,7 @@ object Graph {
 		new WeightedGraphImpl[Int,Int](nodeWeightMap.keys, nodeWeightMap.mapValues{case m => m.keys}, (t:Int,h:Int) => nodeWeightMap(t)(h))
 	}
 
-    trait DfsObserver[@specialized(Int) N] {
+    trait DfsVisitor[@specialized(Int) N] {
         def start(node:N) {}
         def before(node:N) {}
 	    def edge(edge:(N,N)) {}
@@ -162,49 +162,71 @@ object Graph {
     }
 
 	/** Depth-first search of the whole graph */
-	def dfs[@specialized(Int) N](graph:Graph[N], observer: DfsObserver[N]):Unit = dfs(graph, observer, graph.nodes)
+	def dfs[@specialized(Int) N](graph:Graph[N], visitor: DfsVisitor[N]):Unit = dfs(graph, visitor, graph.nodes)
 	/** Depth-first search of the whole graph in the given node's order*/
-	def dfs[@specialized(Int) N](graph:Graph[N], observer: DfsObserver[N], nodes:Traversable[N]):Unit = {
+	def dfs[@specialized(Int) N](graph:Graph[N], visitor: DfsVisitor[N], nodes:Traversable[N]):Unit = {
 		val explored = new HashSet[N]()
 		for (node <- nodes){
 			if (!(explored contains node)){
-				observer start node
-				dfs(graph,node,observer,explored)
+				visitor start node
+				dfs2(graph,node,visitor,explored)
 			}
 		}
 	}
-	/** Depth-first search of the graph starting at given node */
-	def dfs[@specialized(Int) N](graph:Graph[N],node:N, observer: DfsObserver[N], explored:HashSet[N] = HashSet[N]()):Unit = {
+	/** Depth-first search (recursive) of the graph starting at given node */
+	def dfs[@specialized(Int) N](graph:Graph[N],node:N, visitor: DfsVisitor[N], explored:HashSet[N] = HashSet[N]()):Unit = {
 		if (!(explored contains node)){
 			explored add node
-			observer before node
+			visitor before node
 			for (next <- graph.adjacent(node) if (!explored.contains(next))) {
-				observer edge ((node,next))
-				dfs(graph,next,observer,explored)
+				visitor edge ((node,next))
+				dfs(graph,next,visitor,explored)
 			}
-			observer after node
+			visitor after node
 		}
 	}
 
+    /** Depth-first search (iterative) of the graph starting at given node */
+    def dfs2[@specialized(Int) N](graph:Graph[N], source:N, visitor: DfsVisitor[N], explored:HashSet[N] = HashSet[N]()):Unit = {
+        val stack = new Stack[N]()
+        stack.push(source)
+        visitor before source
+        while (!stack.isEmpty){
+            val node = stack.top
+            graph.adjacent(node) find (n => !(explored.contains(n) || stack.contains(n))) match {
+                case Some(next) => {
+                    stack.push(next)
+                    visitor before next
+                    visitor edge ((node,next))
+                }
+                case None => {
+                    stack.pop()
+                    explored add node
+                    visitor after node
+                }
+            }
+        }
+    }
+
 	/** Breath-first search of the whole graph */
-	def bfs[@specialized(Int) N](graph:Graph[N], observer: N => Unit):Unit = {
+	def bfs[@specialized(Int) N](graph:Graph[N], visitor: N => Unit):Unit = {
 		val explored = HashSet[N]()
 		for (node <- graph.nodes){
 			if (!(explored contains node)){
-				bfs(graph,node,observer,explored)
+				bfs(graph,node,visitor,explored)
 			}
 		}
 	}
 
 	/** Breath-first search of the graph starting at given node */
-	def bfs[@specialized(Int) N](graph:Graph[N], node: N, observer: N => Unit, explored:HashSet[N] = HashSet[N]()):Unit = {
+	def bfs[@specialized(Int) N](graph:Graph[N], node: N, visitor: N => Unit, explored:HashSet[N] = HashSet[N]()):Unit = {
 		val queue = new Queue[N]()
 		queue.enqueue(node)
 		while (!queue.isEmpty){
 			val n = queue.dequeue
 			if (!(explored contains n)){
 				explored add n
-				observer(n)
+				visitor(n)
 				for (next <- graph.adjacent(n)) queue.enqueue(next)
 			}
 		}
@@ -256,7 +278,7 @@ object Graph {
 	def sortTopologically[@specialized(Int) N](graph: Graph[N]): List[N] = {
 		var counter = graph.nodesCount
 		var priorities: List[N] = Nil
-		val observer = new DfsObserver[N] {
+		val observer = new DfsVisitor[N] {
 			override def after(node: N) {
 				priorities = node :: priorities
 				counter = counter - 1
@@ -363,7 +385,7 @@ object Graph {
 		var t:Int = 0
 		var s: Option[N] = None
 		// first dfs pass
-		val observer1 = new DfsObserver[N] {
+		val observer1 = new DfsVisitor[N] {
 			override def after(node:N) {
 				t = t + 1
 				attrOf(node).time = t
@@ -377,7 +399,7 @@ object Graph {
 		}
 		QuickSort.sort(times)
 		val ordered = times.view map {case (node,_) => node}
-		val observer2 = new DfsObserver[N] {
+		val observer2 = new DfsVisitor[N] {
 			override def start(node:N) {
 				s = Some(node)
 			}
