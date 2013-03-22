@@ -3,6 +3,7 @@ package org.encalmo.algorithms
 import scala.specialized
 import scalax.file.Path
 import collection.mutable.{ArrayBuffer, Map => MutableMap, Seq => MutableSeq, HashMap, HashSet, Queue, Stack}
+import collection.generic.{Growable, Shrinkable}
 
 trait Graph[@specialized(Int) N] {
     def nodes: Traversable[N]
@@ -54,37 +55,49 @@ class GenericReverseGraph[@specialized(Int) N](origin: Graph[N]) extends Generic
     override val reverse = origin
 }
 
-class MapAsGraph[@specialized(Int) N](val nodeMap: Map[N,Traversable[N]]) extends GenericGraph[N] {
+class MapGraph[@specialized(Int) N](val nodeMap: Map[N,Traversable[N]] = Map[N,Traversable[N]]()) extends GenericGraph[N] with Growable[(N,N)]{
 	override val nodes: Iterable[N] =  nodeMap.keys
 	override val adjacent: N => Traversable[N] = nodeMap
 	override lazy val reverse: Graph[N] = Graph.hardCopyReversed[N](this)
+	override def contains(node: N): Boolean = nodeMap.contains(node)
+
+	def +=(edge: (N, N)): MapGraph[N] = {
+		val (from,to) = edge
+		val adjacent = nodeMap.get(from) match {
+			case Some(v:Vector[N]) => v :+ to
+			case Some(t) => Vector[N]() ++ t :+ to
+			case None => Vector[N](to)
+		}
+		new MapGraph[N](nodeMap + ((from,adjacent)))
+	}
+	def clear() {}
 }
 
-class MutableGraph[@specialized(Int) N](
+class MutableMapGraph[@specialized(Int) N](
     val nodeMap: MutableMap[N,ArrayBuffer[N]] = new HashMap[N,ArrayBuffer[N]]()
-) extends GenericGraph[N] {
+) extends GenericGraph[N] with Growable[(N,N)] with Shrinkable[(N,N)]{
     override def nodes:Iterable[N] =  nodeMap.keys
     override val adjacent: N => ArrayBuffer[N] = nodeMap
 	override def reverse: Graph[N] = Graph.hardCopyReversed[N](this)
 	override def nodesCount: Int = nodeMap.size
+	override def contains(node: N): Boolean = nodeMap.contains(node)
 
-	def add(node:N, adjacent:ArrayBuffer[N] = ArrayBuffer.empty):MutableGraph[N] = {
-		nodeMap.update(node,adjacent)
-		adjacent foreach (nodeMap.getOrElseUpdate(_,{new ArrayBuffer[N]()}))
-		this
-	}
-    def add(edge: (N,N)):MutableGraph[N] = {
+	def +=(edge: (N,N)): this.type = {
         nodeMap.getOrElseUpdate(edge._1,{new ArrayBuffer[N]()}) += (edge._2)
 	    nodeMap.getOrElseUpdate(edge._2,{new ArrayBuffer[N]()})
 	    this
     }
-    def add(edges:Traversable[(N,N)]):MutableGraph[N] = {
-        for (edge <- edges) add(edge); this
+	def -=(edge: (N,N)): this.type = {
+		for(adjacent <- nodeMap.get(edge._1)){
+			adjacent -= (edge._2)
+		}
+		this
+	}
+    def addReverse(edge: (N,N)): this.type = this += (edge.swap)
+    def addReverse(edges:Traversable[(N,N)]): this.type = {
+        for (edge <- edges) +=(edge.swap); this
     }
-    def addReverse(edge: (N,N)):MutableGraph[N] = add(edge.swap)
-    def addReverse(edges:Traversable[(N,N)]):MutableGraph[N] = {
-        for (edge <- edges) add(edge.swap); this
-    }
+	def clear() {nodeMap.clear()}
 }
 
 object Graph {
@@ -92,19 +105,19 @@ object Graph {
 	class GenericGraphImpl[@specialized(Int) N](val nodes:Iterable[N], val adjacent: N => Traversable[N]) extends GenericGraph[N]
 	class WeightedGraphImpl[@specialized(Int) N, @specialized(Double,Int) V:Numeric](val nodes:Iterable[N], val adjacent: N => Traversable[N], val weight: (N,N) => V) extends GenericGraph[N] with Weighted[N,V]
 
-	def apply[@specialized(Int) N](): Graph[N] = new MutableGraph[N]()
-	def apply[@specialized(Int) N](map: Map[N,Traversable[N]]): Graph[N] = new MapAsGraph(map)
-    def apply[@specialized(Int) N](mappings:(N,Traversable[N])*): Graph[N] = new MapAsGraph(mappings.toMap)
+	def apply[@specialized(Int) N](): Graph[N] = new MutableMapGraph[N]()
+	def apply[@specialized(Int) N](map: Map[N,Traversable[N]]): Graph[N] = new MapGraph(map)
+    def apply[@specialized(Int) N](mappings:(N,Traversable[N])*): Graph[N] = new MapGraph(mappings.toMap)
 	def apply[@specialized(Int) N](nodes:Iterable[N], adjacent: N => Traversable[N]): Graph[N] = new GenericGraphImpl[N](nodes,adjacent)
-    def apply[@specialized(Int) N](edges:Traversable[(N,N)]): Graph[N] = new MutableGraph[N]().add(edges)
+    def apply[@specialized(Int) N](edges:Traversable[(N,N)]): Graph[N] = new MutableMapGraph[N]() ++= edges
 	def apply[@specialized(Int) N, @specialized(Double,Int) V:Numeric](mappings:(N,Iterable[(N,V)])*): Graph[N] with Weighted[N,V] = {
 		val nodeWeightMap = mappings.toMap map {case (k,v) => (k,v.toMap)}
 		new WeightedGraphImpl[N,V](nodeWeightMap.keys, nodeWeightMap.mapValues{case m => m.keys}, (t:N,h:N) => nodeWeightMap(t)(h))
 	}
 	
-	def hardCopy[@specialized(Int) N](graph:Graph[N]): MutableGraph[N] =  new MutableGraph[N]().add(graph.edges)
-	def hardCopyReversed[@specialized(Int) N](graph:Graph[N]): MutableGraph[N] =  {
-		new MutableGraph[N](){
+	def hardCopy[@specialized(Int) N](graph:Graph[N]): MutableMapGraph[N] =  new MutableMapGraph[N]() ++= (graph.edges)
+	def hardCopyReversed[@specialized(Int) N](graph:Graph[N]): MutableMapGraph[N] =  {
+		new MutableMapGraph[N](){
 			override lazy val reverse: Graph[N] = graph
 		}.addReverse(graph.edges)
 	}
@@ -301,7 +314,7 @@ object Graph {
 		val nodesCount = graph.nodesCount
 		val explored = new HashSet[N]()
 		val distance = new HashMap[N,V]()
-		val backtrace = new MutableGraph[N]()
+		val backtrace = new MutableMapGraph[N]()
 		implicit val ordering = new Ordering[(N,N,V)] {
 			def compare(x: (N, N, V), y: (N, N, V)): Int =  {
 				num.toInt(num.minus(num.plus(distance(x._1),x._3),num.plus(distance(y._1),y._3)))
@@ -317,7 +330,7 @@ object Graph {
 			for ((t,h,w) <- outgoingEdges.extract){
 				explored add h
 				distance(h) = num.plus(distance(t),w)
-				backtrace add ((h,t))
+				backtrace += ((h,t))
 				outgoingEdges remove (outgoingEdges filter {case (_,node,_) => node == h})
 				nextEdges = graph.adjacent(h) filterNot explored map (node => (h,node,weight(h,node)))
 				outgoingEdges insert nextEdges
@@ -408,9 +421,9 @@ object Graph {
 		result
 	}
 
-	def mergeNodes[@specialized(Int) N](g: Graph[N], mergedNode: N, removedNode: N): MutableGraph[N] =  {
-		val graph:MutableGraph[N] = g match {
-			case x: MutableGraph[N] => x
+	def mergeNodes[@specialized(Int) N](g: Graph[N], mergedNode: N, removedNode: N): MutableMapGraph[N] =  {
+		val graph:MutableMapGraph[N] = g match {
+			case x: MutableMapGraph[N] => x
 			case _ => Graph.hardCopy(g)
 		}
 		//merge two adjacent lists, remove self-loops
@@ -448,8 +461,8 @@ object Graph {
 	}
 
 	def randomCutCount[@specialized(Int) N](g:Graph[N]):Int = {
-		val graph:MutableGraph[N] = g match {
-			case x: MutableGraph[N] => x
+		val graph:MutableMapGraph[N] = g match {
+			case x: MutableMapGraph[N] => x
 			case _ => Graph.hardCopy(g)
 		}
 		val nodesQueue = Queue[N](randomize(graph.nodes.toSeq):_*)
