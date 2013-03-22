@@ -55,22 +55,11 @@ class GenericReverseGraph[@specialized(Int) N](origin: Graph[N]) extends Generic
     override val reverse = origin
 }
 
-class MapGraph[@specialized(Int) N](val nodeMap: Map[N,Traversable[N]] = Map[N,Traversable[N]]()) extends GenericGraph[N] with Growable[(N,N)]{
+class MapGraph[@specialized(Int) N](val nodeMap: Map[N,Traversable[N]] = Map[N,Traversable[N]]()) extends GenericGraph[N]{
 	override val nodes: Iterable[N] =  nodeMap.keys
 	override val adjacent: N => Traversable[N] = nodeMap
 	override lazy val reverse: Graph[N] = Graph.hardCopyReversed[N](this)
 	override def contains(node: N): Boolean = nodeMap.contains(node)
-
-	def +=(edge: (N, N)): MapGraph[N] = {
-		val (from,to) = edge
-		val adjacent = nodeMap.get(from) match {
-			case Some(v:Vector[N]) => v :+ to
-			case Some(t) => Vector[N]() ++ t :+ to
-			case None => Vector[N](to)
-		}
-		new MapGraph[N](nodeMap + ((from,adjacent)))
-	}
-	def clear() {}
 }
 
 class MutableMapGraph[@specialized(Int) N](
@@ -82,12 +71,12 @@ class MutableMapGraph[@specialized(Int) N](
 	override def nodesCount: Int = nodeMap.size
 	override def contains(node: N): Boolean = nodeMap.contains(node)
 
-	def +=(edge: (N,N)): this.type = {
+	override def +=(edge: (N,N)): this.type = {
         nodeMap.getOrElseUpdate(edge._1,{new ArrayBuffer[N]()}) += (edge._2)
 	    nodeMap.getOrElseUpdate(edge._2,{new ArrayBuffer[N]()})
 	    this
     }
-	def -=(edge: (N,N)): this.type = {
+	override def -=(edge: (N,N)): this.type = {
 		for(adjacent <- nodeMap.get(edge._1)){
 			adjacent -= (edge._2)
 		}
@@ -97,7 +86,7 @@ class MutableMapGraph[@specialized(Int) N](
     def addReverse(edges:Traversable[(N,N)]): this.type = {
         for (edge <- edges) +=(edge.swap); this
     }
-	def clear() {nodeMap.clear()}
+	override def clear() {nodeMap.clear()}
 }
 
 object Graph {
