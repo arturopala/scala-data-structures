@@ -1,4 +1,4 @@
 algorithms
 ==========
 
-algorithms in scala
+Scala data structures and algorithms for graphs, trees and heaps.
