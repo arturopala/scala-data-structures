@@ -11,6 +11,27 @@
     <properties>
         <scala.version>2.10.1</scala.version>
     </properties>
+  
+  <description>Scala data structures and algorithms for graphs, trees and heaps.</description>
+  <url>https://github.com/arturopala/algorithms</url>
+  <licenses>
+    <license>
+      <name>The Apache Software License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <scm>
+    <url>https://github.com/arturopala/algorithms</url>
+    <connection>https://github.com/arturopala/algorithms</connection>
+  </scm>
+  <developers>
+    <developer>
+      <id>arturopala</id>
+      <name>Artur Opala</name>
+      <email>opala.artur@gmail.com</email>
+    </developer>
+  </developers>
 
     <dependencies>
         <dependency>
